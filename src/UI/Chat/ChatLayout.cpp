@@ -14,54 +14,6 @@ QRect dateSeparatorRectForRow(const QRect &rowRect)
     return QRect(rowRect.left(), rowRect.top(), rowRect.width(), separatorHeight());
 }
 
-QFont getFontForIndex(const QAbstractItemView *view, const QModelIndex &index)
-{
-    QFont font = view->font();
-    QVariant modelFont = index.data(Qt::FontRole);
-    if (modelFont.isValid() && !modelFont.isNull())
-        font = qvariant_cast<QFont>(modelFont).resolve(font);
-    return font;
-}
-
-QRect avatarRectForRow(const QRect &rowRect, bool hasSeparator)
-{
-    int topOffset = hasSeparator ? separatorHeight() : 0;
-    return QRect(rowRect.left() + padding(), rowRect.top() + blockTopPadding() + topOffset, avatarSize(),
-                 avatarSize());
-}
-
-QRect headerRectForRow(const QRect &rowRect, const QFontMetrics &fm, bool hasSeparator)
-{
-    int topOffset = hasSeparator ? separatorHeight() : 0;
-    int left = rowRect.left() + padding() + avatarSize() + padding();
-    int width = rowRect.right() - left - padding();
-    int capDrop = fm.ascent() - fm.capHeight();
-    return QRect(left, rowRect.top() + blockTopPadding() + topOffset - capDrop, width, fm.height());
-}
-
-QRect textRectForRow(const QRect &rowRect, bool showHeader, const QFontMetrics &fm,
-                     bool hasSeparator)
-{
-    int topOffset = hasSeparator ? separatorHeight() : 0;
-    int left = rowRect.left() + padding() + avatarSize() + padding();
-    int width = rowRect.right() - left - padding();
-    if (width < 10)
-        width = 10;
-
-    int capDrop = fm.ascent() - fm.capHeight();
-    int top = rowRect.top() + topOffset;
-    if (showHeader)
-        top += blockTopPadding() - capDrop + fm.height();
-    else
-        top += 0;
-
-    int height = rowRect.bottom() - top - padding() + 1;
-    if (height < 0)
-        height = 0;
-
-    return QRect(left, top, width, height);
-}
-
 void setupDocument(QTextDocument &doc, const QString &htmlContent, const QFont &font, int textWidth)
 {
     QString wrapped = QString("<div style=\"white-space: pre-wrap;\">%1</div>")
@@ -554,9 +506,9 @@ MessageLayout calculateMessageLayout(const LayoutContext &ctx)
         layout.avatarRect = QRect(padding(), headerAreaTop, avatarSize(), avatarSize());
         layout.headerRect = QRect(textLeft, headerAreaTop - capDrop, textWidth, fm.height());
     } else {
-        QRect baseRowRect(0, ctx.rowTop, ctx.rowWidth, 10000);
-        layout.avatarRect = avatarRectForRow(baseRowRect, ctx.hasSeparator);
-        layout.headerRect = headerRectForRow(baseRowRect, fm, ctx.hasSeparator);
+        int avatarTop = ctx.rowTop + blockTopPadding() + separatorOffset;
+        layout.avatarRect = QRect(padding(), avatarTop, avatarSize(), avatarSize());
+        layout.headerRect = QRect(textLeft, avatarTop - capDrop, textWidth, fm.height());
     }
 
     if (!ctx.htmlContent.isEmpty()) {
@@ -735,6 +687,52 @@ MessageLayout calculateMessageLayout(const LayoutContext &ctx)
     layout.totalHeight = totalHeight;
     layout.rowRect = QRect(0, ctx.rowTop, ctx.rowWidth, totalHeight);
 
+    for (int ei = 0; ei < layout.embedLayouts.size(); ++ei) {
+        const auto &el = layout.embedLayouts[ei];
+        if (ei >= ctx.embeds.size())
+            continue;
+        const auto &embed = ctx.embeds[ei];
+
+        if (el.hasThumbnail && !el.thumbnailRect.isNull())
+            layout.hitRegions.append({ HitRegion::Kind::EmbedThumbnail, el.thumbnailRect, ei, -1, embed.thumbnailUrl.toString() });
+
+        if (!embed.authorName.isEmpty() && !el.authorRect.isNull() && !embed.authorUrl.isEmpty())
+            layout.hitRegions.append({ HitRegion::Kind::EmbedAuthor, el.authorRect, ei, -1, embed.authorUrl });
+
+        if (!embed.title.isEmpty() && !el.titleRect.isNull())
+            layout.hitRegions.append({ HitRegion::Kind::EmbedTitle, el.titleRect, ei, -1, embed.url });
+
+        for (const auto &imgLayout : el.imageLayouts) {
+            if (imgLayout.imageIndex >= embed.images.size())
+                continue;
+            layout.hitRegions.append({ HitRegion::Kind::EmbedImage, imgLayout.rect, ei, imgLayout.imageIndex, embed.images[imgLayout.imageIndex].url.toString() });
+        }
+
+        if (embed.images.isEmpty() && !embed.videoThumbnail.isNull() && embed.thumbnail.isNull() && !el.imagesRect.isNull())
+            layout.hitRegions.append({ HitRegion::Kind::EmbedVideoThumbnail, el.imagesRect, ei, -1, embed.url });
+
+        if (!embed.description.isEmpty() && !el.descriptionRect.isNull())
+            layout.hitRegions.append({ HitRegion::Kind::EmbedDescription, el.descriptionRect, ei, -1, {} });
+
+        for (const auto &fl : el.fieldLayouts) {
+            if (fl.fieldIndex >= embed.fields.size())
+                continue;
+            const auto &field = embed.fields[fl.fieldIndex];
+            if (!field.nameParsed.isEmpty() && !fl.nameRect.isNull())
+                layout.hitRegions.append({ HitRegion::Kind::EmbedFieldName, fl.nameRect, ei, fl.fieldIndex, {} });
+            if (!field.valueParsed.isEmpty() && !fl.valueRect.isNull())
+                layout.hitRegions.append({ HitRegion::Kind::EmbedFieldValue, fl.valueRect, ei, fl.fieldIndex, {} });
+        }
+    }
+
+    for (const auto &al : layout.imageLayouts)
+        layout.hitRegions.append({ HitRegion::Kind::AttachmentImage, al.rect, al.index, -1, {} });
+    for (const auto &al : layout.fileLayouts)
+        layout.hitRegions.append({ HitRegion::Kind::AttachmentFile, al.rect, al.index, -1, {} });
+
+    for (const auto &rl : layout.reactionLayouts)
+        layout.hitRegions.append({ HitRegion::Kind::Reaction, rl.pillRect, rl.reactionIndex, -1, {} });
+
     return layout;
 }
 
@@ -784,42 +782,162 @@ void drawCroppedPixmap(QPainter *painter, const QRect &targetRect, const QPixmap
     painter->drawPixmap(targetRect, pixmap, physicalSourceRect);
 }
 
-int hitTestCharIndex(QAbstractItemView *view, const QModelIndex &index, const QPoint &viewportPos)
+static QString resolveEmbedAnchor(const ChatModel *model, const DocCacheKey &key,
+                                  const QString &parsedHtml, const QFont &font,
+                                  const QRect &rect, const QPoint &mousePos)
 {
-    if (!index.isValid() || !view)
-        return -1;
-
-    const bool showHeader = index.data(ChatModel::ShowHeaderRole).toBool();
-    const QString html = index.data(ChatModel::HtmlRole).toString();
-    const bool hasSeparator = index.data(ChatModel::DateSeparatorRole).toBool();
-    ReplyData reply = index.data(ChatModel::ReplyDataRole).value<ReplyData>();
-    bool hasReply = reply.state != ReplyData::State::None;
-    int replyOffset = hasReply ? replyBarHeight() - padding() : 0;
-
-    QFont docFont = getFontForIndex(view, index);
-    QFontMetrics fm(docFont);
-
-    QRect rowRect = view->visualRect(index);
-    QRect textRect = textRectForRow(rowRect, showHeader, fm, hasSeparator);
-    textRect.translate(0, replyOffset);
-
-    const auto *chatModel = qobject_cast<const ChatModel *>(index.model());
-    Snowflake msgId = index.data(ChatModel::MessageIdRole).toULongLong();
-    QTextDocument *doc = chatModel->getCachedDocument(bodyDocKey(msgId));
+    if (parsedHtml.isEmpty() || !model)
+        return {};
+    QTextDocument *doc = model->getCachedDocument(key);
     QTextDocument localDoc;
     if (!doc) {
-        setupDocument(localDoc, html, docFont, textRect.width());
+        localDoc.setDefaultFont(font);
+        localDoc.setTextWidth(rect.width());
+        localDoc.setHtml(parsedHtml);
         doc = &localDoc;
-    } else if (int(doc->textWidth()) != textRect.width()) {
-        doc->setTextWidth(textRect.width());
+    }
+    QPointF localPos = mousePos - rect.topLeft();
+    return doc->documentLayout()->anchorAt(localPos);
+}
+
+std::optional<HitRegion> hitTest(const ResolvedLayout &resolved, const QPoint &mousePos)
+{
+    const auto &layout = resolved.layout;
+    const auto &ctx = resolved.ctx;
+
+    for (const auto &region : layout.hitRegions) {
+        if (!region.rect.contains(mousePos))
+            continue;
+
+        switch (region.kind) {
+        case HitRegion::Kind::EmbedTitle: {
+            if (region.index >= 0 && region.index < ctx.embeds.size()) {
+                const auto &embed = ctx.embeds[region.index];
+                QFont titleFont = ctx.font;
+                titleFont.setBold(true);
+                QString link = resolveEmbedAnchor(ctx.model,
+                                                  embedTitleDocKey(ctx.messageId, region.index),
+                                                  embed.titleParsed, titleFont, region.rect, mousePos);
+                if (!link.isEmpty())
+                    return HitRegion{ HitRegion::Kind::EmbedLink, region.rect, region.index, -1, link };
+            }
+
+            if (region.url.isEmpty())
+                continue;
+            return region;
+        }
+        case HitRegion::Kind::EmbedDescription: {
+            if (region.index >= 0 && region.index < ctx.embeds.size()) {
+                const auto &embed = ctx.embeds[region.index];
+                QString link = resolveEmbedAnchor(ctx.model,
+                                                  embedDescDocKey(ctx.messageId, region.index),
+                                                  embed.descriptionParsed, ctx.font, region.rect, mousePos);
+                if (!link.isEmpty())
+                    return HitRegion{ HitRegion::Kind::EmbedLink, region.rect, region.index, -1, link };
+            }
+
+            continue;
+        }
+        case HitRegion::Kind::EmbedFieldName: {
+            if (region.index >= 0 && region.index < ctx.embeds.size() &&
+                region.subIndex >= 0 && region.subIndex < ctx.embeds[region.index].fields.size()) {
+                const auto &field = ctx.embeds[region.index].fields[region.subIndex];
+                QFont nameFont = ctx.font;
+                nameFont.setBold(true);
+                QString link = resolveEmbedAnchor(ctx.model,
+                                                  embedFieldNameDocKey(ctx.messageId, region.index, region.subIndex),
+                                                  field.nameParsed, nameFont, region.rect, mousePos);
+                if (!link.isEmpty())
+                    return HitRegion{ HitRegion::Kind::EmbedLink, region.rect, region.index, region.subIndex, link };
+            }
+            continue;
+        }
+        case HitRegion::Kind::EmbedFieldValue: {
+            if (region.index >= 0 && region.index < ctx.embeds.size() &&
+                region.subIndex >= 0 && region.subIndex < ctx.embeds[region.index].fields.size()) {
+                const auto &field = ctx.embeds[region.index].fields[region.subIndex];
+                QString link = resolveEmbedAnchor(ctx.model,
+                                                  embedFieldValueDocKey(ctx.messageId, region.index, region.subIndex),
+                                                  field.valueParsed, ctx.font, region.rect, mousePos);
+                if (!link.isEmpty())
+                    return HitRegion{ HitRegion::Kind::EmbedLink, region.rect, region.index, region.subIndex, link };
+            }
+            continue;
+        }
+        default:
+            return region;
+        }
     }
 
-    QPointF local = viewportPos - textRect.topLeft();
+    if (layout.textRect.contains(mousePos) && !ctx.htmlContent.isEmpty() && ctx.model) {
+        QString link = getLinkAt(resolved, mousePos);
+        if (!link.isEmpty())
+            return HitRegion{ HitRegion::Kind::TextLink, layout.textRect, -1, -1, link };
+
+        if (hitTestCharIndex(resolved, mousePos) >= 0)
+            return HitRegion{ HitRegion::Kind::TextCursor, layout.textRect, -1, -1, {} };
+    }
+
+    return std::nullopt;
+}
+
+ResolvedLayout resolveLayout(const QAbstractItemView *view, const QModelIndex &index)
+{
+    ResolvedLayout result;
+    if (!view || !index.isValid())
+        return result;
+
+    QRect rowRect = view->visualRect(index);
+
+    LayoutContext &ctx = result.ctx;
+    ctx.font = view->font();
+    ctx.rowWidth = rowRect.width();
+    ctx.rowTop = rowRect.top();
+    ctx.showHeader = index.data(ChatModel::ShowHeaderRole).toBool();
+    ctx.hasSeparator = index.data(ChatModel::DateSeparatorRole).toBool();
+    ctx.htmlContent = index.data(ChatModel::HtmlRole).toString();
+    ctx.replyData = index.data(ChatModel::ReplyDataRole).value<ReplyData>();
+    ctx.attachments = index.data(ChatModel::AttachmentsRole).value<QList<AttachmentData>>();
+    ctx.embeds = index.data(ChatModel::EmbedsRole).value<QList<EmbedData>>();
+    ctx.reactions = index.data(ChatModel::ReactionsRole).value<QList<ReactionData>>();
+    ctx.isSystemMessage = index.data(ChatModel::IsSystemMessageRole).toBool();
+    ctx.model = qobject_cast<const ChatModel *>(index.model());
+    ctx.messageId = index.data(ChatModel::MessageIdRole).toULongLong();
+
+    result.layout = calculateMessageLayout(ctx);
+    return result;
+}
+
+int hitTestCharIndex(const ResolvedLayout &resolved, const QPoint &viewportPos)
+{
+    const auto &layout = resolved.layout;
+    const auto &ctx = resolved.ctx;
+
+    if (ctx.htmlContent.isEmpty() || !ctx.model)
+        return -1;
+
+    QTextDocument *doc = ctx.model->getCachedDocument(bodyDocKey(ctx.messageId));
+    QTextDocument localDoc;
+    if (!doc) {
+        setupDocument(localDoc, ctx.htmlContent, ctx.font, layout.textRect.width());
+        doc = &localDoc;
+    } else if (int(doc->textWidth()) != layout.textRect.width()) {
+        doc->setTextWidth(layout.textRect.width());
+    }
+
+    QPointF local = viewportPos - layout.textRect.topLeft();
 
     if (local.y() < 0 || local.y() > doc->size().height())
         return -1;
 
     return doc->documentLayout()->hitTest(local, Qt::ExactHit);
+}
+
+int hitTestCharIndex(const QAbstractItemView *view, const QModelIndex &index, const QPoint &viewportPos)
+{
+    if (!view || !index.isValid())
+        return -1;
+    return hitTestCharIndex(resolveLayout(view, index), viewportPos);
 }
 
 QRectF charRectInDocument(const QTextDocument &doc, int charIndex)
@@ -848,325 +966,28 @@ QRectF charRectInDocument(const QTextDocument &doc, int charIndex)
     return QRectF(x1, y, x2 - x1, line.height());
 }
 
-QString getLinkAt(const QAbstractItemView *view, const QModelIndex &index, const QPoint &mousePos)
+QString getLinkAt(const ResolvedLayout &resolved, const QPoint &mousePos)
 {
-    if (!index.isValid() || !view)
+    const auto &layout = resolved.layout;
+    const auto &ctx = resolved.ctx;
+
+    if (ctx.htmlContent.isEmpty() || !ctx.model)
         return {};
-
-    QString html = index.data(ChatModel::HtmlRole).toString();
-    if (html.isEmpty())
-        return {};
-
-    QRect rowRect = view->visualRect(index);
-
-    const auto *chatModel = qobject_cast<const ChatModel *>(index.model());
-    Snowflake msgId = index.data(ChatModel::MessageIdRole).toULongLong();
-
-    LayoutContext ctx;
-    ctx.font = view->font();
-    ctx.rowWidth = rowRect.width();
-    ctx.rowTop = rowRect.top();
-    ctx.showHeader = index.data(ChatModel::ShowHeaderRole).toBool();
-    ctx.hasSeparator = index.data(ChatModel::DateSeparatorRole).toBool();
-    ctx.htmlContent = html;
-    ctx.replyData = index.data(ChatModel::ReplyDataRole).value<ReplyData>();
-    ctx.attachments = index.data(ChatModel::AttachmentsRole).value<QList<AttachmentData>>();
-    ctx.embeds = index.data(ChatModel::EmbedsRole).value<QList<EmbedData>>();
-    ctx.model = chatModel;
-    ctx.messageId = msgId;
-
-    MessageLayout layout = calculateMessageLayout(ctx);
 
     if (!layout.textRect.contains(mousePos))
         return {};
 
-    QTextDocument *doc = chatModel->getCachedDocument(bodyDocKey(msgId));
+    QTextDocument *doc = ctx.model->getCachedDocument(bodyDocKey(ctx.messageId));
     QTextDocument localDoc;
     if (!doc) {
-        setupDocument(localDoc, html, ctx.font, layout.textRect.width());
+        setupDocument(localDoc, ctx.htmlContent, ctx.font, layout.textRect.width());
         doc = &localDoc;
     } else if (int(doc->textWidth()) != layout.textRect.width()) {
         doc->setTextWidth(layout.textRect.width());
     }
 
     QPointF localPos = mousePos - layout.textRect.topLeft();
-
     return doc->documentLayout()->anchorAt(localPos);
-}
-
-std::optional<AttachmentData> getAttachmentAt(const QAbstractItemView *view,
-                                              const QModelIndex &index, const QPoint &mousePos)
-{
-    if (!index.isValid() || !view)
-        return std::nullopt;
-
-    QList<AttachmentData> attachments =
-            index.data(ChatModel::AttachmentsRole).value<QList<AttachmentData>>();
-
-    if (attachments.isEmpty())
-        return std::nullopt;
-
-    LayoutContext ctx;
-    ctx.font = view->font();
-    ctx.rowWidth = view->visualRect(index).width();
-    ctx.rowTop = view->visualRect(index).top();
-    ctx.showHeader = index.data(ChatModel::ShowHeaderRole).toBool();
-    ctx.hasSeparator = index.data(ChatModel::DateSeparatorRole).toBool();
-    ctx.htmlContent = index.data(ChatModel::HtmlRole).toString();
-    ctx.attachments = attachments;
-    ctx.replyData = index.data(ChatModel::ReplyDataRole).value<ReplyData>();
-    ctx.model = qobject_cast<const ChatModel *>(index.model());
-    ctx.messageId = index.data(ChatModel::MessageIdRole).toULongLong();
-
-    MessageLayout layout = calculateMessageLayout(ctx);
-
-    for (const auto &imgLayout : layout.imageLayouts) {
-        if (imgLayout.rect.contains(mousePos))
-            return attachments[imgLayout.index];
-    }
-
-    for (const auto &fileLayout : layout.fileLayouts) {
-        if (fileLayout.rect.contains(mousePos))
-            return attachments[fileLayout.index];
-    }
-
-    return std::nullopt;
-}
-
-std::optional<EmbedHitResult> getEmbedAt(const QAbstractItemView *view, const QModelIndex &index,
-                                         const QPoint &mousePos)
-{
-    if (!index.isValid() || !view)
-        return std::nullopt;
-
-    QList<EmbedData> embeds = index.data(ChatModel::EmbedsRole).value<QList<EmbedData>>();
-    if (embeds.isEmpty())
-        return std::nullopt;
-
-    const auto *chatModel = qobject_cast<const ChatModel *>(index.model());
-    Snowflake msgId = index.data(ChatModel::MessageIdRole).toULongLong();
-
-    LayoutContext ctx;
-    ctx.font = view->font();
-    QRect rowRect = view->visualRect(index);
-    ctx.rowWidth = rowRect.width();
-    ctx.rowTop = rowRect.top();
-    ctx.showHeader = index.data(ChatModel::ShowHeaderRole).toBool();
-    ctx.hasSeparator = index.data(ChatModel::DateSeparatorRole).toBool();
-    ctx.htmlContent = index.data(ChatModel::HtmlRole).toString();
-    ctx.attachments = index.data(ChatModel::AttachmentsRole).value<QList<AttachmentData>>();
-    ctx.embeds = embeds;
-    ctx.replyData = index.data(ChatModel::ReplyDataRole).value<ReplyData>();
-    ctx.model = chatModel;
-    ctx.messageId = msgId;
-
-    MessageLayout layout = calculateMessageLayout(ctx);
-
-    for (int embedIndex = 0; embedIndex < layout.embedLayouts.size(); ++embedIndex) {
-        const auto &embedLayout = layout.embedLayouts[embedIndex];
-        const auto &embed = embeds[embedIndex];
-
-        if (!embedLayout.embedRect.contains(mousePos))
-            continue;
-
-        if (embedLayout.hasThumbnail && !embedLayout.thumbnailRect.isNull()) {
-            if (embedLayout.thumbnailRect.contains(mousePos)) {
-                EmbedHitResult result;
-                result.embedIndex = embedIndex;
-                result.hitType = !embed.thumbnail.isNull() ? EmbedHitType::Image
-                                                           : EmbedHitType::VideoThumbnail;
-                result.image = !embed.thumbnail.isNull() ? embed.thumbnail : embed.videoThumbnail;
-                result.imageSize = embedLayout.thumbnailRect.size();
-                result.url = embed.thumbnailUrl.toString();
-                return result;
-            }
-        }
-
-        if (!embed.authorName.isEmpty() && !embedLayout.authorRect.isNull()) {
-            if (embedLayout.authorRect.contains(mousePos) && !embed.authorUrl.isEmpty()) {
-                EmbedHitResult result;
-                result.embedIndex = embedIndex;
-                result.hitType = EmbedHitType::Author;
-                result.url = embed.authorUrl;
-                return result;
-            }
-        }
-
-        if (!embed.title.isEmpty() && !embedLayout.titleRect.isNull()) {
-            if (embedLayout.titleRect.contains(mousePos)) {
-                if (!embed.titleParsed.isEmpty()) {
-                    QFont titleFont = view->font();
-                    titleFont.setBold(true);
-                    QTextDocument *titleDoc = chatModel->getCachedDocument(embedTitleDocKey(msgId, embedIndex));
-                    QTextDocument localTitleDoc;
-                    if (!titleDoc) {
-                        localTitleDoc.setDefaultFont(titleFont);
-                        localTitleDoc.setTextWidth(embedLayout.titleRect.width());
-                        localTitleDoc.setHtml(embed.titleParsed);
-                        titleDoc = &localTitleDoc;
-                    }
-                    QPointF localPos = mousePos - embedLayout.titleRect.topLeft();
-                    QString linkUrl = titleDoc->documentLayout()->anchorAt(localPos);
-                    if (!linkUrl.isEmpty()) {
-                        EmbedHitResult result;
-                        result.embedIndex = embedIndex;
-                        result.hitType = EmbedHitType::Link;
-                        result.url = linkUrl;
-                        return result;
-                    }
-                }
-
-                if (!embed.url.isEmpty()) {
-                    EmbedHitResult result;
-                    result.embedIndex = embedIndex;
-                    result.hitType = EmbedHitType::Title;
-                    result.url = embed.url;
-                    return result;
-                }
-            }
-        }
-
-        if (!embed.images.isEmpty() && !embedLayout.imageLayouts.isEmpty()) {
-            for (const auto &imgLayout : embedLayout.imageLayouts) {
-                if (imgLayout.imageIndex >= embed.images.size())
-                    continue;
-
-                if (imgLayout.rect.contains(mousePos)) {
-                    const auto &img = embed.images[imgLayout.imageIndex];
-                    EmbedHitResult result;
-                    result.embedIndex = embedIndex;
-                    result.hitType = EmbedHitType::Image;
-                    result.image = img.pixmap;
-                    result.imageSize = imgLayout.rect.size();
-                    result.url = img.url.toString();
-                    return result;
-                }
-            }
-        } else if (!embed.videoThumbnail.isNull() && embed.thumbnail.isNull()) {
-            if (!embedLayout.imagesRect.isNull() && embedLayout.imagesRect.contains(mousePos)) {
-                EmbedHitResult result;
-                result.embedIndex = embedIndex;
-                result.hitType = EmbedHitType::VideoThumbnail;
-                result.image = embed.videoThumbnail;
-                result.imageSize = embedLayout.imagesRect.size();
-                result.url = embed.url;
-                return result;
-            }
-        }
-
-        if (!embed.description.isEmpty() && !embedLayout.descriptionRect.isNull() &&
-            embedLayout.descriptionRect.contains(mousePos) && !embed.descriptionParsed.isEmpty()) {
-            QTextDocument *descDoc = chatModel->getCachedDocument(embedDescDocKey(msgId, embedIndex));
-            QTextDocument localDescDoc;
-            if (!descDoc) {
-                localDescDoc.setDefaultFont(view->font());
-                localDescDoc.setTextWidth(embedLayout.descriptionRect.width());
-                localDescDoc.setHtml(embed.descriptionParsed);
-                descDoc = &localDescDoc;
-            }
-            QPointF localPos = mousePos - embedLayout.descriptionRect.topLeft();
-            QString linkUrl = descDoc->documentLayout()->anchorAt(localPos);
-            if (!linkUrl.isEmpty()) {
-                EmbedHitResult result;
-                result.embedIndex = embedIndex;
-                result.hitType = EmbedHitType::Link;
-                result.url = linkUrl;
-                return result;
-            }
-        }
-
-        for (const auto &fieldLayout : embedLayout.fieldLayouts) {
-            if (fieldLayout.fieldIndex >= embed.fields.size())
-                continue;
-
-            const auto &field = embed.fields[fieldLayout.fieldIndex];
-
-            if (fieldLayout.nameRect.contains(mousePos) && !field.nameParsed.isEmpty()) {
-                QFont fieldNameFont = view->font();
-                fieldNameFont.setBold(true);
-                QTextDocument *nameDoc = chatModel->getCachedDocument(embedFieldNameDocKey(msgId, embedIndex, fieldLayout.fieldIndex));
-                QTextDocument localNameDoc;
-                if (!nameDoc) {
-                    localNameDoc.setDefaultFont(fieldNameFont);
-                    localNameDoc.setTextWidth(fieldLayout.nameRect.width());
-                    localNameDoc.setHtml(field.nameParsed);
-                    nameDoc = &localNameDoc;
-                }
-                QPointF localPos = mousePos - fieldLayout.nameRect.topLeft();
-                QString linkUrl = nameDoc->documentLayout()->anchorAt(localPos);
-                if (!linkUrl.isEmpty()) {
-                    EmbedHitResult result;
-                    result.embedIndex = embedIndex;
-                    result.hitType = EmbedHitType::Link;
-                    result.url = linkUrl;
-                    return result;
-                }
-            }
-
-            if (fieldLayout.valueRect.contains(mousePos) && !field.valueParsed.isEmpty()) {
-                QTextDocument *valueDoc = chatModel->getCachedDocument(embedFieldValueDocKey(msgId, embedIndex, fieldLayout.fieldIndex));
-                QTextDocument localValueDoc;
-                if (!valueDoc) {
-                    localValueDoc.setDefaultFont(view->font());
-                    localValueDoc.setTextWidth(fieldLayout.valueRect.width());
-                    localValueDoc.setHtml(field.valueParsed);
-                    valueDoc = &localValueDoc;
-                }
-                QPointF localPos = mousePos - fieldLayout.valueRect.topLeft();
-                QString linkUrl = valueDoc->documentLayout()->anchorAt(localPos);
-                if (!linkUrl.isEmpty()) {
-                    EmbedHitResult result;
-                    result.embedIndex = embedIndex;
-                    result.hitType = EmbedHitType::Link;
-                    result.url = linkUrl;
-                    return result;
-                }
-            }
-        }
-    }
-
-    return std::nullopt;
-}
-
-std::optional<ReactionHitResult> getReactionAt(const QAbstractItemView *view,
-                                               const QModelIndex &index, const QPoint &mousePos)
-{
-    if (!index.isValid() || !view)
-        return std::nullopt;
-
-    QList<ReactionData> reactions =
-            index.data(ChatModel::ReactionsRole).value<QList<ReactionData>>();
-
-    if (reactions.isEmpty())
-        return std::nullopt;
-
-    LayoutContext ctx;
-    ctx.font = view->font();
-    QRect rowRect = view->visualRect(index);
-    ctx.rowWidth = rowRect.width();
-    ctx.rowTop = rowRect.top();
-    ctx.showHeader = index.data(ChatModel::ShowHeaderRole).toBool();
-    ctx.hasSeparator = index.data(ChatModel::DateSeparatorRole).toBool();
-    ctx.htmlContent = index.data(ChatModel::HtmlRole).toString();
-    ctx.attachments = index.data(ChatModel::AttachmentsRole).value<QList<AttachmentData>>();
-    ctx.embeds = index.data(ChatModel::EmbedsRole).value<QList<EmbedData>>();
-    ctx.reactions = reactions;
-    ctx.replyData = index.data(ChatModel::ReplyDataRole).value<ReplyData>();
-    ctx.model = qobject_cast<const ChatModel *>(index.model());
-    ctx.messageId = index.data(ChatModel::MessageIdRole).toULongLong();
-
-    MessageLayout layout = calculateMessageLayout(ctx);
-
-    for (const auto &reactionLayout : layout.reactionLayouts) {
-        if (reactionLayout.pillRect.contains(mousePos)) {
-            ReactionHitResult result;
-            result.reactionIndex = reactionLayout.reactionIndex;
-            result.reaction = reactions[reactionLayout.reactionIndex];
-            return result;
-        }
-    }
-
-    return std::nullopt;
 }
 
 QPixmap createBlurredPixmap(const QPixmap &source, int blurRadius)

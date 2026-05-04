@@ -82,20 +82,20 @@ void ChatView::mouseMoveEvent(QMouseEvent *event)
     QPoint pos = event->pos();
     QModelIndex idx = indexAt(pos);
 
-    if (event->buttons() & Qt::LeftButton && selectionAnchor.isValid()) {
+    bool inSelectionDrag = (event->buttons() & Qt::LeftButton) && selectionAnchor.isValid();
+    if (inSelectionDrag) {
         int currentRow = idx.isValid() ? idx.row() : (model()->rowCount() - 1);
         if (currentRow < 0)
             return;
 
         if (!idx.isValid())
             idx = model()->index(currentRow, 0);
+    }
 
-        QRect visualR = visualRect(idx);
-        const bool showHeader = idx.data(ChatModel::ShowHeaderRole).toBool();
-        const bool hasSeparator = idx.data(ChatModel::DateSeparatorRole).toBool();
-        QFont font = ChatLayout::getFontForIndex(this, idx);
-        QFontMetrics fm(font);
-        QRect textRect = ChatLayout::textRectForRow(visualR, showHeader, fm, hasSeparator);
+    ChatLayout::ResolvedLayout resolved = ChatLayout::resolveLayout(this, idx);
+
+    if (inSelectionDrag) {
+        const QRect &textRect = resolved.layout.textRect;
 
         int newChar = -1;
 
@@ -111,34 +111,30 @@ void ChatView::mouseMoveEvent(QMouseEvent *event)
                 QString content = idx.data(ChatModel::ContentRole).toString();
                 newChar = content.length();
             } else {
-                newChar = ChatLayout::hitTestCharIndex(this, idx, pos);
+                newChar = ChatLayout::hitTestCharIndex(resolved, pos);
             }
         }
 
         if (newChar >= 0) {
-            selectionHead = { currentRow, newChar };
+            selectionHead = { idx.row(), newChar };
             viewport()->update();
         }
     }
 
-    int charPos = ChatLayout::hitTestCharIndex(this, idx, pos);
+    auto region = ChatLayout::hitTest(resolved, pos);
 
-    QString link = ChatLayout::getLinkAt(this, idx, pos);
-    std::optional<AttachmentData> hoveredAtt = ChatLayout::getAttachmentAt(this, idx, pos);
-    std::optional<ChatLayout::EmbedHitResult> hoveredEmbed = ChatLayout::getEmbedAt(this, idx, pos);
-    std::optional<ChatLayout::ReactionHitResult> hoveredReaction = ChatLayout::getReactionAt(this, idx, pos);
-
-    if (!link.isEmpty() || hoveredAtt.has_value() || hoveredEmbed.has_value() || hoveredReaction.has_value()) {
-        viewport()->setCursor(Qt::PointingHandCursor);
-    } else {
-        if (charPos >= 0) {
-            if (viewport()->cursor().shape() != Qt::IBeamCursor)
-                viewport()->setCursor(Qt::IBeamCursor);
+    Qt::CursorShape shape = Qt::ArrowCursor;
+    int charPos = -1;
+    if (region) {
+        if (region->kind == ChatLayout::HitRegion::Kind::TextCursor) {
+            shape = Qt::IBeamCursor;
+            charPos = ChatLayout::hitTestCharIndex(resolved, pos);
         } else {
-            if (viewport()->cursor().shape() != Qt::ArrowCursor)
-                viewport()->setCursor(Qt::ArrowCursor);
+            shape = Qt::PointingHandCursor;
         }
     }
+    if (viewport()->cursor().shape() != shape)
+        viewport()->setCursor(shape);
 
     if (hoveredRow != idx.row() || hoveredChar != charPos) {
         if (hoveredRow != -1)
@@ -154,110 +150,128 @@ void ChatView::mouseMoveEvent(QMouseEvent *event)
 
 void ChatView::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
-        QPoint pos = event->pos();
-        QModelIndex idx = indexAt(pos);
+    if (event->button() != Qt::LeftButton) {
+        QListView::mouseReleaseEvent(event);
+        return;
+    }
 
-        std::optional<ChatLayout::ReactionHitResult> reactionHit = ChatLayout::getReactionAt(this, idx, pos);
-        if (reactionHit.has_value() && !hasTextSelection()) {
-            auto *chatModel = qobject_cast<ChatModel *>(model());
-            if (chatModel) {
-                Snowflake channelId = chatModel->getActiveChannelId();
-                Snowflake messageId = idx.data(ChatModel::MessageIdRole).toULongLong();
-                const ReactionData &r = reactionHit->reaction;
-                QString emojiStr;
-                if (r.emojiId.isValid())
-                    emojiStr = r.emojiName + ":" + QString::number(r.emojiId);
-                else
-                    emojiStr = r.emojiName;
-                emit toggleReactionClicked(channelId, messageId, emojiStr, r.me, r.isBurst);
-            }
-            QListView::mouseReleaseEvent(event);
+    QPoint pos = event->pos();
+    QModelIndex idx = indexAt(pos);
+    ChatLayout::ResolvedLayout resolved = ChatLayout::resolveLayout(this, idx);
+    auto region = ChatLayout::hitTest(resolved, pos);
+
+    if (!region) {
+        QListView::mouseReleaseEvent(event);
+        return;
+    }
+
+    using Kind = ChatLayout::HitRegion::Kind;
+
+    auto openExternalLink = [this](const QString &url) {
+        if (url.isEmpty())
             return;
-        }
+        ConfirmPopup dialog(tr("External Link"),
+                            QString(tr("Are you sure you want to open <b>%1</b>?")).arg(url),
+                            tr("Open Link"), this);
+        if (dialog.exec() == QDialog::Accepted)
+            QDesktopServices::openUrl(QUrl(url));
+    };
 
-        std::optional<ChatLayout::EmbedHitResult> embedHit = ChatLayout::getEmbedAt(this, idx, pos);
-        if (embedHit.has_value()) {
-            switch (embedHit->hitType) {
-            case ChatLayout::EmbedHitType::Image: {
-                if (!embedHit->image.isNull()) {
-                    auto *viewer = new ImageViewer(window());
-                    viewer->showImage(QUrl(embedHit->url), embedHit->image);
-                }
-                QListView::mouseReleaseEvent(event);
-                return;
-            }
-            case ChatLayout::EmbedHitType::VideoThumbnail:
-            case ChatLayout::EmbedHitType::Title:
-            case ChatLayout::EmbedHitType::Author:
-            case ChatLayout::EmbedHitType::Link: {
-                if (!embedHit->url.isEmpty()) {
-                    ConfirmPopup dialog(tr("External Link"),
-                                        QString(tr("Are you sure you want to open <b>%1</b>?"))
-                                                .arg(embedHit->url),
-                                        tr("Open Link"), this);
+    auto openImage = [this](const QUrl &url, const QPixmap &pixmap) {
+        auto *viewer = new ImageViewer(window());
+        viewer->showImage(url, pixmap);
+    };
 
-                    if (dialog.exec() == QDialog::Accepted)
-                        QDesktopServices::openUrl(QUrl(embedHit->url));
-                }
-                QListView::mouseReleaseEvent(event);
-                return;
-            }
-            default:
-                break;
-            }
-        }
+    switch (region->kind) {
+    case Kind::Reaction: {
+        if (hasTextSelection())
+            break;
+        auto *chatModel = qobject_cast<ChatModel *>(model());
+        if (!chatModel || region->index < 0 || region->index >= resolved.ctx.reactions.size())
+            break;
+        Snowflake channelId = chatModel->getActiveChannelId();
+        Snowflake messageId = idx.data(ChatModel::MessageIdRole).toULongLong();
+        const ReactionData &r = resolved.ctx.reactions[region->index];
+        QString emojiStr = r.emojiId.isValid() ? (r.emojiName + ":" + QString::number(r.emojiId))
+                                               : r.emojiName;
+        emit toggleReactionClicked(channelId, messageId, emojiStr, r.me, r.isBurst);
+        break;
+    }
 
-        std::optional<AttachmentData> att = ChatLayout::getAttachmentAt(this, idx, pos);
-        if (att.has_value()) {
-            if (att->isImage) {
-                if (att->isSpoiler) {
-                    ChatModel *chatModel = qobject_cast<ChatModel *>(model());
-                    if (chatModel && !chatModel->isSpoilerRevealed(att->id)) {
-                        chatModel->revealSpoiler(att->id);
-                        QListView::mouseReleaseEvent(event);
-                        return;
-                    }
-                }
-
-                auto *viewer = new ImageViewer(window());
-                viewer->showImage(att->proxyUrl, att->pixmap);
-                QListView::mouseReleaseEvent(event);
-                return;
-            } else {
-                ConfirmPopup dialog(
-                        tr("Open File"),
-                        QString(tr("Do you want to open <b>%1</b> (%2) in your browser?"))
-                                .arg(att->filename)
-                                .arg(ChatLayout::formatFileSize(att->fileSizeBytes)),
-                        tr("Open"), this);
-
-                if (dialog.exec() == QDialog::Accepted)
-                    QDesktopServices::openUrl(att->originalUrl);
-
-                QListView::mouseReleaseEvent(event);
-                return;
-            }
-        }
-
-        QString link = ChatLayout::getLinkAt(this, idx, pos);
-
-        if (!link.isEmpty()) {
-            if (link.startsWith("acheron://channel/")) {
-                bool ok = false;
-                quint64 id = link.mid(18).toULongLong(&ok);
-                if (ok)
-                    emit channelMentionClicked(Core::Snowflake(id));
-            } else {
-                ConfirmPopup dialog(tr("External Link"),
-                                    QString(tr("Are you sure you want to open <b>%1</b>?")).arg(link),
-                                    tr("Open Link"), this);
-
-                if (dialog.exec() == QDialog::Accepted) {
-                    QDesktopServices::openUrl(QUrl(link));
+    case Kind::AttachmentImage:
+    case Kind::AttachmentFile: {
+        if (region->index < 0 || region->index >= resolved.ctx.attachments.size())
+            break;
+        const AttachmentData &att = resolved.ctx.attachments[region->index];
+        if (att.isImage) {
+            if (att.isSpoiler) {
+                auto *chatModel = qobject_cast<ChatModel *>(model());
+                if (chatModel && !chatModel->isSpoilerRevealed(att.id)) {
+                    chatModel->revealSpoiler(att.id);
+                    break;
                 }
             }
+            openImage(att.proxyUrl, att.pixmap);
+        } else {
+            ConfirmPopup dialog(tr("Open File"),
+                                QString(tr("Do you want to open <b>%1</b> (%2) in your browser?"))
+                                        .arg(att.filename)
+                                        .arg(ChatLayout::formatFileSize(att.fileSizeBytes)),
+                                tr("Open"), this);
+            if (dialog.exec() == QDialog::Accepted)
+                QDesktopServices::openUrl(att.originalUrl);
         }
+        break;
+    }
+
+    case Kind::EmbedThumbnail: {
+        if (region->index < 0 || region->index >= resolved.ctx.embeds.size())
+            break;
+        const auto &embed = resolved.ctx.embeds[region->index];
+        if (!embed.thumbnail.isNull())
+            openImage(QUrl(region->url), embed.thumbnail);
+        else
+            openExternalLink(region->url);
+        break;
+    }
+
+    case Kind::EmbedImage: {
+        if (region->index < 0 || region->index >= resolved.ctx.embeds.size())
+            break;
+        const auto &embed = resolved.ctx.embeds[region->index];
+        if (region->subIndex < 0 || region->subIndex >= embed.images.size())
+            break;
+        const auto &img = embed.images[region->subIndex];
+        openImage(img.url, img.pixmap);
+        break;
+    }
+
+    case Kind::EmbedVideoThumbnail:
+    case Kind::EmbedAuthor:
+    case Kind::EmbedTitle:
+    case Kind::EmbedLink:
+        openExternalLink(region->url);
+        break;
+
+    case Kind::TextLink:
+        if (region->url.startsWith("acheron://channel/")) {
+            bool ok = false;
+            quint64 id = region->url.mid(18).toULongLong(&ok);
+            if (ok)
+                emit channelMentionClicked(Core::Snowflake(id));
+        } else {
+            openExternalLink(region->url);
+        }
+        break;
+
+    case Kind::TextCursor:
+    case Kind::Avatar:
+    case Kind::UsernameHeader:
+    case Kind::ReplyBar:
+    case Kind::EmbedDescription:
+    case Kind::EmbedFieldName:
+    case Kind::EmbedFieldValue:
+        break;
     }
 
     QListView::mouseReleaseEvent(event);
@@ -505,21 +519,14 @@ void ChatView::startInlineEdit(const QModelIndex &index)
             return;
 
         QRect itemRect = visualRect(currentEditingIndex);
-        bool showHeader = currentEditingIndex.data(ChatModel::ShowHeaderRole).toBool();
-        bool hasSeparator = currentEditingIndex.data(ChatModel::DateSeparatorRole).toBool();
-        QFont font = ChatLayout::getFontForIndex(this, currentEditingIndex);
-        QFontMetrics fm(font);
-        QRect textRect = ChatLayout::textRectForRow(itemRect, showHeader, fm, hasSeparator);
-
-        ReplyData reply = currentEditingIndex.data(ChatModel::ReplyDataRole).value<ReplyData>();
-        if (reply.state != ReplyData::State::None)
-            textRect.translate(0, ChatLayout::replyBarHeight() - ChatLayout::padding());
+        ChatLayout::ResolvedLayout resolved = ChatLayout::resolveLayout(this, currentEditingIndex);
+        const QRect &textRect = resolved.layout.textRect;
 
         int editHeight = qMax(InlineEditMinHeight, itemRect.bottom() - textRect.top() - 4);
         QRect editRect(textRect.left(), textRect.top(), textRect.width(), editHeight);
 
         inlineEditWidget->setGeometry(editRect);
-        inlineEditWidget->setFont(font);
+        inlineEditWidget->setFont(resolved.ctx.font);
         inlineEditWidget->setPlainText(content);
         inlineEditWidget->setVisible(true);
         inlineEditWidget->setFocus();

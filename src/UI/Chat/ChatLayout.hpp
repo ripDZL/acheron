@@ -160,6 +160,36 @@ struct AttachmentLayout
     int index;
 };
 
+struct HitRegion
+{
+    enum class Kind {
+        Avatar,
+        UsernameHeader,
+        ReplyBar,
+        AttachmentImage,
+        AttachmentFile,
+        EmbedThumbnail,
+        EmbedAuthor,
+        EmbedTitle,
+        EmbedImage,
+        EmbedVideoThumbnail,
+        EmbedDescription,
+        EmbedFieldName,
+        EmbedFieldValue,
+        Reaction,
+
+        TextLink,
+        TextCursor,
+        EmbedLink,
+    };
+
+    Kind kind;
+    QRect rect;
+    int index = -1;
+    int subIndex = -1;
+    QString url;
+};
+
 struct MessageLayout
 {
     QRect rowRect;
@@ -190,6 +220,8 @@ struct MessageLayout
     int reactionsTotalHeight;
 
     int totalHeight;
+
+    QList<HitRegion> hitRegions;
 };
 
 struct LayoutContext
@@ -213,56 +245,32 @@ struct LayoutContext
 };
 
 MessageLayout calculateMessageLayout(const LayoutContext &ctx);
+
+struct ResolvedLayout
+{
+    MessageLayout layout;
+    LayoutContext ctx;
+};
+
+ResolvedLayout resolveLayout(const QAbstractItemView *view, const QModelIndex &index);
 EmbedLayout calculateEmbedLayout(const EmbedData &embed, const QFont &font, int maxWidth, int left,
                                  int top, const ChatModel *model = nullptr,
                                  Core::Snowflake messageId = Core::Snowflake::Invalid,
                                  int embedIndex = -1);
 int calculateAttachmentsHeight(const QList<AttachmentData> &attachments, int textWidth);
 int calculateEmbedsHeight(const QList<EmbedData> &embeds, const QFont &font, int textWidth);
-enum class EmbedHitType {
-    None,
-    Title,
-    Author,
-    Image,
-    VideoThumbnail,
-    Link,
-};
-
-struct EmbedHitResult
-{
-    int embedIndex = -1;
-    EmbedHitType hitType = EmbedHitType::None;
-    QString url;
-    QPixmap image;
-    QSize imageSize;
-};
 
 QRect dateSeparatorRectForRow(const QRect &rowRect);
-QRect avatarRectForRow(const QRect &rowRect, bool hasSeparator);
-QRect headerRectForRow(const QRect &rowRect, const QFontMetrics &fm, bool hasSeparator);
-QRect textRectForRow(const QRect &rowRect, bool showHeader, const QFontMetrics &fm,
-                     bool hasSeparator);
 
 void setupDocument(QTextDocument &doc, const QString &htmlContent, const QFont &font,
                    int textWidth);
-QFont getFontForIndex(const QAbstractItemView *view, const QModelIndex &index);
-
-int hitTestCharIndex(QAbstractItemView *view, const QModelIndex &index, const QPoint &viewportPos);
 QRectF charRectInDocument(const QTextDocument &doc, int charIndex);
-QString getLinkAt(const QAbstractItemView *view, const QModelIndex &index, const QPoint &mousePos);
-std::optional<AttachmentData> getAttachmentAt(const QAbstractItemView *view,
-                                              const QModelIndex &index, const QPoint &mousePos);
-std::optional<EmbedHitResult> getEmbedAt(const QAbstractItemView *view, const QModelIndex &index,
-                                         const QPoint &mousePos);
 
-struct ReactionHitResult
-{
-    int reactionIndex = -1;
-    ReactionData reaction;
-};
+std::optional<HitRegion> hitTest(const ResolvedLayout &resolved, const QPoint &mousePos);
 
-std::optional<ReactionHitResult> getReactionAt(const QAbstractItemView *view,
-                                               const QModelIndex &index, const QPoint &mousePos);
+int hitTestCharIndex(const ResolvedLayout &resolved, const QPoint &viewportPos);
+QString getLinkAt(const ResolvedLayout &resolved, const QPoint &mousePos);
+int hitTestCharIndex(const QAbstractItemView *view, const QModelIndex &index, const QPoint &viewportPos);
 
 QString formatFileSize(qint64 bytes);
 
