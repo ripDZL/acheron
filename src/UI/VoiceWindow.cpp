@@ -8,12 +8,16 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFontDatabase>
+#include <QFormLayout>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPointer>
 #include <QPainter>
 #include <QPainterPath>
+#include <QSettings>
 #include <QVBoxLayout>
+
+#include <opus.h>
 #include <QHBoxLayout>
 #include <QLinearGradient>
 #include <QFrame>
@@ -420,6 +424,198 @@ void VoiceWindow::setupUi()
         QByteArray deviceId = outputDeviceCombo->itemData(index).toByteArray();
         voiceManager->setOutputDevice(deviceId);
     });
+
+    buildAdvancedSection(layout);
+    loadCodecSettings();
+}
+
+void VoiceWindow::buildAdvancedSection(QVBoxLayout *parentLayout)
+{
+    advancedToggle = new QToolButton(this);
+    advancedToggle->setText(tr("Advanced"));
+    advancedToggle->setCheckable(true);
+    advancedToggle->setChecked(false);
+    advancedToggle->setArrowType(Qt::RightArrow);
+    advancedToggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    advancedToggle->setAutoRaise(true);
+    advancedToggle->setCursor(Qt::PointingHandCursor);
+    advancedToggle->setStyleSheet(
+            "QToolButton { font-size: 10px; font-weight: bold; text-transform: uppercase;"
+            "  color: palette(text); background: transparent; border: none; padding: 4px 0; }"
+            "QToolButton:hover { color: palette(highlight); }");
+    parentLayout->addWidget(advancedToggle);
+
+    advancedContainer = new QWidget(this);
+    advancedContainer->setVisible(false);
+    auto *advLayout = new QFormLayout(advancedContainer);
+    advLayout->setContentsMargins(0, 0, 0, 0);
+    advLayout->setSpacing(4);
+    advLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    advLayout->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
+
+    auto makeSliderRow = [this](QSlider *&slider, QLabel *&value, int min, int max,
+                                int valueFieldWidth) {
+        auto *row = new QWidget(advancedContainer);
+        auto *l = new QHBoxLayout(row);
+        l->setContentsMargins(0, 0, 0, 0);
+        l->setSpacing(4);
+        slider = new QSlider(Qt::Horizontal, row);
+        slider->setRange(min, max);
+        value = new QLabel(row);
+        value->setFixedWidth(valueFieldWidth);
+        value->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        l->addWidget(slider, 1);
+        l->addWidget(value);
+        return row;
+    };
+
+    applicationCombo = new QComboBox(advancedContainer);
+    applicationCombo->addItem(tr("VOIP"), OPUS_APPLICATION_VOIP);
+    applicationCombo->addItem(tr("Audio"), OPUS_APPLICATION_AUDIO);
+    advLayout->addRow(tr("Application"), applicationCombo);
+
+    advLayout->addRow(tr("Bitrate"),
+                      makeSliderRow(bitrateSlider, bitrateValue, 8, 510, 56));
+    advLayout->addRow(tr("Complexity"),
+                      makeSliderRow(complexitySlider, complexityValue, 0, 10, 36));
+
+    signalTypeCombo = new QComboBox(advancedContainer);
+    signalTypeCombo->addItem(tr("Auto"), OPUS_AUTO);
+    signalTypeCombo->addItem(tr("Voice"), OPUS_SIGNAL_VOICE);
+    signalTypeCombo->addItem(tr("Music"), OPUS_SIGNAL_MUSIC);
+    advLayout->addRow(tr("Signal"), signalTypeCombo);
+
+    fecCheckbox = new QCheckBox(tr("Forward Error Correction"), advancedContainer);
+    advLayout->addRow(QString(), fecCheckbox);
+
+    advLayout->addRow(tr("Packet Loss"),
+                      makeSliderRow(packetLossSlider, packetLossValue, 0, 100, 36));
+
+    parentLayout->addWidget(advancedContainer);
+
+    installResetOnDoubleClick(applicationCombo, OPUS_APPLICATION_VOIP);
+    installResetOnDoubleClick(bitrateSlider, 64);
+    installResetOnDoubleClick(complexitySlider, 5);
+    installResetOnDoubleClick(signalTypeCombo, OPUS_SIGNAL_VOICE);
+    installResetOnDoubleClick(fecCheckbox, true);
+    installResetOnDoubleClick(packetLossSlider, 0);
+
+    connect(advancedToggle, &QToolButton::toggled, this, [this](bool checked) {
+        advancedToggle->setArrowType(checked ? Qt::DownArrow : Qt::RightArrow);
+        advancedContainer->setVisible(checked);
+        adjustSize();
+    });
+
+    connect(applicationCombo, &QComboBox::currentIndexChanged, this, [this](int index) {
+        int value = applicationCombo->itemData(index).toInt();
+        QSettings().setValue("voice/codec/application", value);
+        if (voiceManager)
+            voiceManager->setOpusApplication(value);
+    });
+
+    connect(bitrateSlider, &QSlider::valueChanged, this, [this](int value) {
+        bitrateValue->setText(QString("%1 kbps").arg(value));
+        QSettings().setValue("voice/codec/bitrate", value);
+        if (voiceManager)
+            voiceManager->setOpusBitrate(value * 1000);
+    });
+
+    connect(complexitySlider, &QSlider::valueChanged, this, [this](int value) {
+        complexityValue->setText(QString::number(value));
+        QSettings().setValue("voice/codec/complexity", value);
+        if (voiceManager)
+            voiceManager->setOpusComplexity(value);
+    });
+
+    connect(signalTypeCombo, &QComboBox::currentIndexChanged, this, [this](int index) {
+        int value = signalTypeCombo->itemData(index).toInt();
+        QSettings().setValue("voice/codec/signal_type", value);
+        if (voiceManager)
+            voiceManager->setOpusSignalType(value);
+    });
+
+    connect(fecCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
+        QSettings().setValue("voice/codec/fec", checked);
+        if (voiceManager)
+            voiceManager->setOpusFec(checked);
+    });
+
+    connect(packetLossSlider, &QSlider::valueChanged, this, [this](int value) {
+        packetLossValue->setText(QString("%1%").arg(value));
+        QSettings().setValue("voice/codec/packet_loss", value);
+        if (voiceManager)
+            voiceManager->setOpusPacketLossPercent(value);
+    });
+}
+
+void VoiceWindow::loadCodecSettings()
+{
+    QSettings settings;
+    int application = settings.value("voice/codec/application", OPUS_APPLICATION_VOIP).toInt();
+    int bitrate = settings.value("voice/codec/bitrate", 64).toInt();
+    int complexity = settings.value("voice/codec/complexity", 5).toInt();
+    int signalType = settings.value("voice/codec/signal_type", OPUS_SIGNAL_VOICE).toInt();
+    bool fec = settings.value("voice/codec/fec", true).toBool();
+    int packetLoss = settings.value("voice/codec/packet_loss", 0).toInt();
+
+    int appIdx = applicationCombo->findData(application);
+    if (appIdx >= 0)
+        applicationCombo->setCurrentIndex(appIdx);
+    bitrateSlider->setValue(bitrate);
+    bitrateValue->setText(QString("%1 kbps").arg(bitrate));
+    complexitySlider->setValue(complexity);
+    complexityValue->setText(QString::number(complexity));
+    int idx = signalTypeCombo->findData(signalType);
+    if (idx >= 0)
+        signalTypeCombo->setCurrentIndex(idx);
+    fecCheckbox->setChecked(fec);
+    packetLossSlider->setValue(packetLoss);
+    packetLossValue->setText(QString("%1%").arg(packetLoss));
+}
+
+void VoiceWindow::applyCodecSettingsToManager()
+{
+    if (!voiceManager)
+        return;
+    voiceManager->setOpusApplication(applicationCombo->currentData().toInt());
+    voiceManager->setOpusBitrate(bitrateSlider->value() * 1000);
+    voiceManager->setOpusComplexity(complexitySlider->value());
+    voiceManager->setOpusSignalType(signalTypeCombo->currentData().toInt());
+    voiceManager->setOpusFec(fecCheckbox->isChecked());
+    voiceManager->setOpusPacketLossPercent(packetLossSlider->value());
+}
+
+bool VoiceWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    if (event->type() != QEvent::MouseButtonDblClick)
+        return QWidget::eventFilter(obj, event);
+
+    QVariant defaultValue = obj->property("defaultValue");
+    if (!defaultValue.isValid())
+        return QWidget::eventFilter(obj, event);
+
+    if (auto *slider = qobject_cast<QSlider *>(obj)) {
+        slider->setValue(defaultValue.toInt());
+        return true;
+    }
+    if (auto *combo = qobject_cast<QComboBox *>(obj)) {
+        int idx = combo->findData(defaultValue);
+        if (idx >= 0)
+            combo->setCurrentIndex(idx);
+        return true;
+    }
+    if (auto *check = qobject_cast<QCheckBox *>(obj)) {
+        check->setChecked(defaultValue.toBool());
+        return true;
+    }
+    return QWidget::eventFilter(obj, event);
+}
+
+void VoiceWindow::installResetOnDoubleClick(QWidget *widget, const QVariant &defaultValue)
+{
+    widget->setProperty("defaultValue", defaultValue);
+    widget->installEventFilter(this);
+    widget->setToolTip(tr("Double-click to reset to default"));
 }
 
 void VoiceWindow::setVoiceManager(Core::AV::VoiceManager *manager)
@@ -455,6 +651,7 @@ void VoiceWindow::setVoiceManager(Core::AV::VoiceManager *manager)
     for (const auto &p : existing)
         onParticipantJoined(p.userId);
 
+    applyCodecSettingsToManager();
     refreshDevices();
 }
 

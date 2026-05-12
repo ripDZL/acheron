@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QWidget>
+#include <QCheckBox>
 #include <QLabel>
 #include <QSlider>
 #include <QComboBox>
@@ -9,6 +10,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QTimer>
+#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -126,9 +128,16 @@ public:
     void setImageManager(Core::ImageManager *manager);
     void refreshDevices();
 
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
+
 private:
     void setupUi();
+    void buildAdvancedSection(QVBoxLayout *parentLayout);
     void disconnectManager();
+    void loadCodecSettings();
+    void applyCodecSettingsToManager();
+    void installResetOnDoubleClick(QWidget *widget, const QVariant &defaultValue);
 
     void onParticipantJoined(Core::Snowflake userId);
     void onParticipantLeft(Core::Snowflake userId);
@@ -164,6 +173,18 @@ private:
     QLabel *inputGainValue;
     QLabel *outputVolumeValue;
     QLabel *vadThresholdValue;
+
+    QToolButton *advancedToggle = nullptr;
+    QWidget *advancedContainer = nullptr;
+    QComboBox *applicationCombo = nullptr;
+    QSlider *bitrateSlider = nullptr;
+    QLabel *bitrateValue = nullptr;
+    QSlider *complexitySlider = nullptr;
+    QLabel *complexityValue = nullptr;
+    QComboBox *signalTypeCombo = nullptr;
+    QCheckBox *fecCheckbox = nullptr;
+    QSlider *packetLossSlider = nullptr;
+    QLabel *packetLossValue = nullptr;
 
     static constexpr QSize AVATAR_REQUEST_SIZE = QSize(32, 32);
 };

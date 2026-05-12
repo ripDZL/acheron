@@ -34,11 +34,7 @@ void AudioPipeline::start(IAudioBackend *backend, bool capturing)
     audioBackend = backend;
     connect(audioBackend, &IAudioBackend::audioCaptured, this, &AudioPipeline::onAudioCaptured, Qt::QueuedConnection);
 
-    encoder = std::make_unique<OpusEncoder>();
-    if (!encoder->init(AUDIO_SAMPLE_RATE, AUDIO_CHANNELS)) {
-        qCCritical(LogVoice) << "Failed to initialize Opus encoder";
-        encoder.reset();
-    }
+    initializeEncoder();
 
     rmsThrottleTimer.start();
     userRmsThrottleTimer.start();
@@ -181,6 +177,72 @@ void AudioPipeline::setOutputVolume(float volume)
 void AudioPipeline::setVadThreshold(float threshold)
 {
     vadThreshold = threshold;
+}
+
+void AudioPipeline::initializeEncoder()
+{
+    encoder = std::make_unique<OpusEncoder>();
+    if (!encoder->init(AUDIO_SAMPLE_RATE, AUDIO_CHANNELS, opusApplication)) {
+        qCCritical(LogVoice) << "Failed to initialize Opus encoder";
+        encoder.reset();
+        return;
+    }
+    encoder->setBitrate(opusBitrate);
+    encoder->setComplexity(opusComplexity);
+    encoder->setSignalType(opusSignalType);
+    encoder->setFec(opusFec);
+    encoder->setPacketLossPercent(opusPacketLossPercent);
+}
+
+void AudioPipeline::setOpusApplication(int application)
+{
+    if (opusApplication == application)
+        return;
+
+    opusApplication = application;
+
+    if (encoder)
+        initializeEncoder();
+}
+
+void AudioPipeline::setOpusBitrate(int bitrate)
+{
+    opusBitrate = bitrate;
+
+    if (encoder)
+        encoder->setBitrate(bitrate);
+}
+
+void AudioPipeline::setOpusComplexity(int complexity)
+{
+    opusComplexity = complexity;
+
+    if (encoder)
+        encoder->setComplexity(complexity);
+}
+
+void AudioPipeline::setOpusSignalType(int signalType)
+{
+    opusSignalType = signalType;
+
+    if (encoder)
+        encoder->setSignalType(signalType);
+}
+
+void AudioPipeline::setOpusFec(bool enabled)
+{
+    opusFec = enabled;
+
+    if (encoder)
+        encoder->setFec(enabled);
+}
+
+void AudioPipeline::setOpusPacketLossPercent(int percent)
+{
+    opusPacketLossPercent = percent;
+
+    if (encoder)
+        encoder->setPacketLossPercent(percent);
 }
 
 void AudioPipeline::onAudioCaptured(const QByteArray &pcmData)

@@ -17,13 +17,13 @@ OpusEncoder::~OpusEncoder()
         opus_encoder_destroy(encoder);
 }
 
-bool OpusEncoder::init(int sampleRate, int channels)
+bool OpusEncoder::init(int sampleRate, int channels, int application)
 {
     frameSamples = sampleRate * AUDIO_FRAME_DURATION_MS / 1000;
     frameChannels = channels;
 
     int error;
-    encoder = opus_encoder_create(sampleRate, channels, OPUS_APPLICATION_VOIP, &error);
+    encoder = opus_encoder_create(sampleRate, channels, application, &error);
     if (error != OPUS_OK || !encoder) {
         qCCritical(LogVoice) << "Failed to create Opus encoder:" << opus_strerror(error);
         return false;

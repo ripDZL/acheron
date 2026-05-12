@@ -17,7 +17,7 @@ public:
     OpusEncoder(const OpusEncoder &) = delete;
     OpusEncoder &operator=(const OpusEncoder &) = delete;
 
-    bool init(int sampleRate, int channels);
+    bool init(int sampleRate, int channels, int application = OPUS_APPLICATION_VOIP);
 
     QByteArray encode(const QByteArray &pcmFrame);
 

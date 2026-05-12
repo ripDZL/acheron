@@ -220,6 +220,54 @@ void VoiceManager::setVadThreshold(float threshold)
         QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, threshold]() { p->setVadThreshold(threshold); });
 }
 
+void VoiceManager::setOpusApplication(int application)
+{
+    cachedOpusApplication = application;
+
+    if (audioPipeline)
+        QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, application]() { p->setOpusApplication(application); });
+}
+
+void VoiceManager::setOpusBitrate(int bitrate)
+{
+    cachedOpusBitrate = bitrate;
+
+    if (audioPipeline)
+        QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, bitrate]() { p->setOpusBitrate(bitrate); });
+}
+
+void VoiceManager::setOpusComplexity(int complexity)
+{
+    cachedOpusComplexity = complexity;
+
+    if (audioPipeline)
+        QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, complexity]() { p->setOpusComplexity(complexity); });
+}
+
+void VoiceManager::setOpusSignalType(int signalType)
+{
+    cachedOpusSignalType = signalType;
+
+    if (audioPipeline)
+        QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, signalType]() { p->setOpusSignalType(signalType); });
+}
+
+void VoiceManager::setOpusFec(bool enabled)
+{
+    cachedOpusFec = enabled;
+
+    if (audioPipeline)
+        QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, enabled]() { p->setOpusFec(enabled); });
+}
+
+void VoiceManager::setOpusPacketLossPercent(int percent)
+{
+    cachedOpusPacketLossPercent = percent;
+
+    if (audioPipeline)
+        QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, percent]() { p->setOpusPacketLossPercent(percent); });
+}
+
 QList<AudioDeviceInfo> VoiceManager::availableInputDevices() const
 {
     if (voiceThread)
@@ -534,7 +582,20 @@ void VoiceManager::onVoiceClientConnected()
     QByteArray inputId = currentInputDeviceId;
     QByteArray outputId = currentOutputDeviceId;
     IAudioBackend *backend = audioBackend.get();
-    QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, backend, capturing, inputId, outputId]() {
+    int application = cachedOpusApplication;
+    int bitrate = cachedOpusBitrate;
+    int complexity = cachedOpusComplexity;
+    int signalType = cachedOpusSignalType;
+    bool fec = cachedOpusFec;
+    int plp = cachedOpusPacketLossPercent;
+    QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, backend, capturing, inputId, outputId,
+                                              application, bitrate, complexity, signalType, fec, plp]() {
+        p->setOpusApplication(application);
+        p->setOpusBitrate(bitrate);
+        p->setOpusComplexity(complexity);
+        p->setOpusSignalType(signalType);
+        p->setOpusFec(fec);
+        p->setOpusPacketLossPercent(plp);
         p->start(backend, capturing);
         if (!inputId.isEmpty())
             p->setInputDevice(inputId);

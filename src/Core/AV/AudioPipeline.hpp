@@ -9,6 +9,8 @@
 #include <memory>
 #include <unordered_map>
 
+#include <opus.h>
+
 #include "Core/Snowflake.hpp"
 
 class QTimer;
@@ -55,6 +57,13 @@ public slots:
     void setOutputVolume(float volume);
     void setVadThreshold(float threshold);
 
+    void setOpusApplication(int application);
+    void setOpusBitrate(int bitrate);
+    void setOpusComplexity(int complexity);
+    void setOpusSignalType(int signalType);
+    void setOpusFec(bool enabled);
+    void setOpusPacketLossPercent(int percent);
+
 signals:
     void encodedAudioReady(const QByteArray &opusData);
     void speakingChanged(bool speaking);
@@ -68,6 +77,7 @@ private slots:
 private:
     bool detectVoiceActivity(const QByteArray &pcmFrame, float &outRms) const;
     void sendTrailingSilence();
+    void initializeEncoder();
     static float computeRms(const int16_t *samples, int count);
 
     IAudioBackend *audioBackend = nullptr;
@@ -83,6 +93,13 @@ private:
     float vadThreshold = 100.0f;
     int vadHoldoffFrames = 25;
     int vadHoldoffCounter = 0;
+
+    int opusApplication = OPUS_APPLICATION_VOIP;
+    int opusBitrate = 64000;
+    int opusComplexity = 5;
+    int opusSignalType = OPUS_SIGNAL_VOICE;
+    bool opusFec = true;
+    int opusPacketLossPercent = 0;
 
     QElapsedTimer rmsThrottleTimer;
     QElapsedTimer userRmsThrottleTimer;

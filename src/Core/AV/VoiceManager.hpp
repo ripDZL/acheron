@@ -10,6 +10,8 @@
 #include <memory>
 #include <vector>
 
+#include <opus.h>
+
 #include "Core/Snowflake.hpp"
 #include "Core/AV/IAudioBackend.hpp"
 #include "Discord/Events.hpp"
@@ -53,6 +55,20 @@ public:
     void setOutputVolume(float volume);
     void setUserVolume(Snowflake userId, float volume);
     void setVadThreshold(float threshold);
+
+    void setOpusApplication(int application);
+    void setOpusBitrate(int bitrate);
+    void setOpusComplexity(int complexity);
+    void setOpusSignalType(int signalType);
+    void setOpusFec(bool enabled);
+    void setOpusPacketLossPercent(int percent);
+
+    [[nodiscard]] int opusApplication() const { return cachedOpusApplication; }
+    [[nodiscard]] int opusBitrate() const { return cachedOpusBitrate; }
+    [[nodiscard]] int opusComplexity() const { return cachedOpusComplexity; }
+    [[nodiscard]] int opusSignalType() const { return cachedOpusSignalType; }
+    [[nodiscard]] bool opusFec() const { return cachedOpusFec; }
+    [[nodiscard]] int opusPacketLossPercent() const { return cachedOpusPacketLossPercent; }
 
     [[nodiscard]] QList<AudioDeviceInfo> availableInputDevices() const;
     [[nodiscard]] QList<AudioDeviceInfo> availableOutputDevices() const;
@@ -124,6 +140,13 @@ private:
 
     QByteArray currentInputDeviceId;
     QByteArray currentOutputDeviceId;
+
+    int cachedOpusApplication = OPUS_APPLICATION_VOIP;
+    int cachedOpusBitrate = 64000;
+    int cachedOpusComplexity = 5;
+    int cachedOpusSignalType = OPUS_SIGNAL_VOICE;
+    bool cachedOpusFec = true;
+    int cachedOpusPacketLossPercent = 0;
     QList<AudioDeviceInfo> cachedInputDevices;
     QList<AudioDeviceInfo> cachedOutputDevices;
 
