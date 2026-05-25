@@ -23,10 +23,13 @@ void Logger::init()
     if (!dir.exists())
         dir.mkpath(".");
 
-    QString filePath = dir.filePath("acheron.log");
+    logFilePath = dir.filePath("acheron.log");
 
-    logFile = new QFile(filePath);
+    logFile = new QFile(logFilePath);
     if (logFile->open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append)) {
+        if (logFile->size() >= maxLogFileSize)
+            rotateLogFile();
+
         QTextStream stream(logFile);
         stream << "\n=== Acheron startup: " << QDateTime::currentDateTime().toString() << " ===\n";
     }
@@ -35,6 +38,28 @@ void Logger::init()
     writerThread = new std::thread(&Logger::writerLoop);
 
     qInstallMessageHandler(Logger::messageHandler);
+}
+
+void Logger::rotateLogFile()
+{
+    bool wasOpen = logFile && logFile->isOpen();
+    if (wasOpen)
+        logFile->close();
+
+    QFile::remove(QString("%1.%2").arg(logFilePath).arg(maxBackupFiles));
+
+    for (int i = maxBackupFiles - 1; i >= 1; i--) {
+        QString src = QString("%1.%2").arg(logFilePath).arg(i);
+        QString dst = QString("%1.%2").arg(logFilePath).arg(i + 1);
+        if (QFile::exists(src))
+            QFile::rename(src, dst);
+    }
+
+    if (QFile::exists(logFilePath))
+        QFile::rename(logFilePath, logFilePath + ".1");
+
+    if (wasOpen && logFile)
+        logFile->open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append);
 }
 
 void Logger::cleanup()
@@ -76,6 +101,9 @@ void Logger::writerLoop()
                 logFile->write("\n", 1);
             }
             logFile->flush();
+
+            if (logFile->size() >= maxLogFileSize)
+                rotateLogFile();
         }
         batch.clear();
 
