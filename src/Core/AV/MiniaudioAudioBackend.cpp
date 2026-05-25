@@ -31,10 +31,12 @@ static constexpr ma_uint32 PLAYBACK_RB_FRAMES = AUDIO_FRAME_SAMPLES * 8;
 
 struct MiniaudioState
 {
+    ma_log log = {};
     ma_context context = {};
     ma_device captureDevice = {};
     ma_device playbackDevice = {};
     ma_pcm_rb playbackRB = {};
+    bool logInit = false;
     bool contextInit = false;
     bool captureDeviceInit = false;
     bool playbackDeviceInit = false;
@@ -49,6 +51,31 @@ void OnCapture(ma_device *pDevice, void *, const void *pInput, ma_uint32 frameCo
 void OnPlayback(ma_device *pDevice, void *pOutput, const void *, ma_uint32 frameCount)
 {
     static_cast<MiniaudioAudioBackend *>(pDevice->pUserData)->handlePlaybackFrames(pOutput, frameCount);
+}
+
+static void MiniaudioLogCallback(void *pUserData, ma_uint32 level, const char *pMessage)
+{
+	Q_UNUSED(pUserData);
+
+    QString msg = QString::fromUtf8(pMessage).trimmed();
+    if (msg.isEmpty())
+        return;
+
+    switch (level) {
+    case MA_LOG_LEVEL_ERROR:
+        qCCritical(LogMiniaudio).noquote() << msg;
+        break;
+    case MA_LOG_LEVEL_WARNING:
+        qCWarning(LogMiniaudio).noquote() << msg;
+        break;
+    case MA_LOG_LEVEL_INFO:
+        qCInfo(LogMiniaudio).noquote() << msg;
+        break;
+    case MA_LOG_LEVEL_DEBUG:
+    default:
+        qCDebug(LogMiniaudio).noquote() << msg;
+        break;
+    }
 }
 
 static QByteArray SerializeDeviceId(const ma_device_id &id)
@@ -94,7 +121,16 @@ MiniaudioAudioBackend::MiniaudioAudioBackend(QObject *parent)
     : IAudioBackend(parent),
       ma(std::make_unique<MiniaudioState>())
 {
-    if (ma_context_init(NULL, 0, NULL, &ma->context) != MA_SUCCESS)
+    if (ma_log_init(nullptr, &ma->log) == MA_SUCCESS) {
+        ma->logInit = true;
+        ma_log_register_callback(&ma->log, ma_log_callback_init(MiniaudioLogCallback, nullptr));
+    }
+
+    ma_context_config contextConfig = ma_context_config_init();
+    if (ma->logInit)
+        contextConfig.pLog = &ma->log;
+
+    if (ma_context_init(NULL, 0, &contextConfig, &ma->context) != MA_SUCCESS)
         qCWarning(LogVoice) << "Failed to initialize miniaudio context";
     else
         ma->contextInit = true;
@@ -115,6 +151,9 @@ MiniaudioAudioBackend::~MiniaudioAudioBackend()
 
     if (ma->contextInit)
         ma_context_uninit(&ma->context);
+
+    if (ma->logInit)
+        ma_log_uninit(&ma->log);
 }
 
 QList<AudioDeviceInfo> MiniaudioAudioBackend::availableInputDevices() const
