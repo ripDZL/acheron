@@ -4,12 +4,17 @@
 
 #include <curl/curl.h>
 
+#include <memory>
+#include <optional>
+
 #include "CaptchaResolver.hpp"
 
 namespace Acheron {
 namespace Discord {
 
 class ClientIdentity;
+class RequestWorker;
+struct RequestDescriptor;
 
 struct HttpResponse
 {
@@ -34,6 +39,15 @@ class HttpClient : public QObject
 public:
     explicit HttpClient(const QString &baseUrl, const QString &token, ClientIdentity &identity,
                         CaptchaResolver *captchaResolver = nullptr, QObject *parent = nullptr);
+    ~HttpClient() override;
+
+    enum class Method {
+        GET,
+        POST,
+        PUT,
+        PATCH,
+        DELETE_, // thanks windows.h for the DELETE macro
+    };
 
     void get(const QString &endpoint, const QUrlQuery &query, HttpCallback callback);
     void post(const QString &endpoint, const QJsonObject &body, HttpCallback callback);
@@ -45,33 +59,22 @@ public:
                        const QList<FileUpload> &files, HttpCallback callback);
 
 private:
-    enum class Method {
-        GET,
-        POST,
-        PUT,
-        PATCH,
-        DELETE_, // thanks windows.h for the DELETE macro
-    };
-
-    static void lock_cb(CURL *handle, curl_lock_data data, curl_lock_access access, void *userptr);
-    static void unlock_cb(CURL *handle, curl_lock_data data, void *userptr);
-    void setupSharing();
-
     void executeRequest(Method method, const QString &url, const QByteArray &data,
-                        HttpCallback callback, int captchaAttempt = 0,
-                        std::optional<CaptchaSolution> solution = std::nullopt);
+                        HttpCallback callback);
     void executeMultipartRequest(const QString &url, const QByteArray &jsonData,
-                                 const QList<FileUpload> &files, HttpCallback callback,
-                                 int captchaAttempt = 0,
-                                 std::optional<CaptchaSolution> solution = std::nullopt);
+                                 const QList<FileUpload> &files, HttpCallback callback);
 
-    CURLSH *share;
-    static inline std::array<std::mutex, 3> shareMutexes;
+    void onRequestComplete(RequestDescriptor descriptor, HttpResponse response,
+                           std::optional<CaptchaChallenge> challenge);
 
     QString baseUrl;
     QString token;
     ClientIdentity &identity;
     CaptchaResolver *captchaResolver;
+
+    std::unique_ptr<RequestWorker> worker;
+
+    friend class RequestWorker;
 };
 
 } // namespace Discord

@@ -37,6 +37,7 @@ public:
 
     explicit Client(const QString &token, const QString &gatewayUrl, const QString &baseUrl,
                     CaptchaResolver *captchaResolver = nullptr, QObject *parent = nullptr);
+    ~Client() override;
 
     void start();
     void stop();

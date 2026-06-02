@@ -58,6 +58,13 @@ Client::Client(const QString &token, const QString &gatewayUrl, const QString &b
     });
 }
 
+Client::~Client()
+{
+    // join and delete the http clients thread before everything else
+    delete httpClient;
+    httpClient = nullptr;
+}
+
 void Client::start()
 {
     setState(Core::ConnectionState::Connecting);
