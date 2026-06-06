@@ -1,7 +1,11 @@
 #pragma once
 
+#include <cstdint>
+
 namespace Acheron {
 namespace Discord {
+
+constexpr uint32_t BLURPLE = 0x5865F2;
 
 enum class OpCode {
     DISPATCH = 0,

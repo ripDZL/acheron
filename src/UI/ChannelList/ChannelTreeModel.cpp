@@ -4,6 +4,7 @@
 #include <Core/ReadStateManager.hpp>
 #include <Core/Logging.hpp>
 #include <Discord/CdnUrls.hpp>
+#include <Discord/Enums.hpp>
 #include <Storage/DatabaseManager.hpp>
 #include <Storage/ChannelRepository.hpp>
 #include <Storage/UserRepository.hpp>
@@ -370,7 +371,8 @@ void ChannelTreeModel::populateFromReady(const Discord::Ready &ready)
                 folderNode->type = ChannelNode::Type::Folder;
                 folderNode->name = folder.name.value_or("Unnamed Folder");
                 folderNode->folderName = folder.name;
-                folderNode->folderColor = folder.color;
+                if (folder.color != Discord::BLURPLE)
+                    folderNode->folderColor = folder.color;
                 folderNode->id = Core::Snowflake(folder.id.value());
 
                 for (const auto &guildId : folder.guildIds)
