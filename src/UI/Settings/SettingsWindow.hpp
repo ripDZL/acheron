@@ -27,6 +27,8 @@ private:
     QCheckBox *inMemoryCacheCheckbox = nullptr;
     QCheckBox *downloadImagesCheckbox = nullptr;
     QSpinBox *messageSpacingSpin = nullptr;
+    QCheckBox *invertWheelCheckbox = nullptr;
+    QDoubleSpinBox *scrollSpeedSpin = nullptr;
 
     // discord
     QCheckBox *showNicknamesCheckbox = nullptr;

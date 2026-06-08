@@ -54,10 +54,17 @@ public:
     void setCanPinMessages(bool canPin);
     void setCanManageMessages(bool canManage);
 
+    // Chat wheel-scroll preferences (live, backed by QSettings)
+    static double scrollSpeed();
+    static void setScrollSpeed(double mult);
+    static bool wheelInverted();
+    static void setWheelInverted(bool on);
+
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     bool eventFilter(QObject *obj, QEvent *event) override;

@@ -3,12 +3,80 @@
 #include <QMenu>
 #include <QTextDocument>
 #include <QTextCursor>
+#include <QSettings>
+#include <atomic>
 
 #include "UI/Dialogs/ConfirmPopup.hpp"
 #include "UI/ImageViewer.hpp"
 
 namespace Acheron {
 namespace UI {
+
+namespace {
+std::atomic<int> g_scrollSpeedX100{-1}; // -1 = not loaded; stored as mult*100
+std::atomic<int> g_wheelInvert{-1};     // -1 = not loaded; 0/1 otherwise
+} // namespace
+
+double ChatView::scrollSpeed()
+{
+    int v = g_scrollSpeedX100.load(std::memory_order_relaxed);
+    if (v < 0) {
+        v = QSettings().value("chat/scroll_speed", 1.0).toDouble() * 100;
+        if (v < 25) v = 25;
+        if (v > 500) v = 500;
+        g_scrollSpeedX100.store(v, std::memory_order_relaxed);
+    }
+    return v / 100.0;
+}
+
+void ChatView::setScrollSpeed(double mult)
+{
+    int v = static_cast<int>(mult * 100);
+    if (v < 25) v = 25;
+    if (v > 500) v = 500;
+    g_scrollSpeedX100.store(v, std::memory_order_relaxed);
+    QSettings().setValue("chat/scroll_speed", v / 100.0);
+}
+
+bool ChatView::wheelInverted()
+{
+    int v = g_wheelInvert.load(std::memory_order_relaxed);
+    if (v < 0) {
+        v = QSettings().value("chat/invert_wheel", false).toBool() ? 1 : 0;
+        g_wheelInvert.store(v, std::memory_order_relaxed);
+    }
+    return v == 1;
+}
+
+void ChatView::setWheelInverted(bool on)
+{
+    g_wheelInvert.store(on ? 1 : 0, std::memory_order_relaxed);
+    QSettings().setValue("chat/invert_wheel", on);
+}
+
+void ChatView::wheelEvent(QWheelEvent *event)
+{
+    const double speed = scrollSpeed();
+    const bool invert = wheelInverted();
+    if (qFuzzyCompare(speed, 1.0) && !invert) {
+        QListView::wheelEvent(event);
+        return;
+    }
+
+    QScrollBar *vbar = verticalScrollBar();
+    const QPoint pixel = event->pixelDelta();
+    const QPoint angle = event->angleDelta();
+    double dy;
+    if (!pixel.isNull())
+        dy = pixel.y() * speed;
+    else
+        dy = (angle.y() / 120.0) * vbar->singleStep() * 3.0 * speed;
+    if (invert)
+        dy = -dy;
+    vbar->setValue(vbar->value() - static_cast<int>(dy));
+    event->accept();
+}
+
 ChatView::ChatView(QWidget *parent) : QListView(parent), hoveredRow(-1), hoveredChar(-1)
 {
     setMouseTracking(true);

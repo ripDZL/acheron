@@ -2,6 +2,7 @@
 
 #include "AppearancePage.hpp"
 #include "UI/TypingIndicator.hpp"
+#include "UI/Chat/ChatView.hpp"
 #include "Core/ImageManager.hpp"
 #include "Core/UserManager.hpp"
 
@@ -84,6 +85,34 @@ void SettingsWindow::buildGeneralPage()
     genNote->setWordWrap(true);
     genNote->setStyleSheet("color: palette(mid);");
     layout->addWidget(genNote);
+
+    // ── Scrolling ────────────────────────────────────────────────────────────
+    auto *scrollLabel = new QLabel(tr("Scrolling"), page);
+    QFont sbf = scrollLabel->font();
+    sbf.setBold(true);
+    scrollLabel->setFont(sbf);
+    layout->addSpacing(10);
+    layout->addWidget(scrollLabel);
+
+    invertWheelCheckbox = new QCheckBox(tr("Invert scroll wheel in chat"), page);
+    layout->addWidget(invertWheelCheckbox);
+    connect(invertWheelCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        ChatView::setWheelInverted(checked);
+    });
+
+    auto *scrollForm = new QFormLayout;
+    scrollForm->setFieldGrowthPolicy(QFormLayout::FieldsStayAtSizeHint);
+    scrollSpeedSpin = new QDoubleSpinBox(page);
+    scrollSpeedSpin->setRange(0.25, 5.0);
+    scrollSpeedSpin->setSingleStep(0.25);
+    scrollSpeedSpin->setDecimals(2);
+    scrollSpeedSpin->setSuffix(tr("x"));
+    scrollSpeedSpin->setValue(ChatView::scrollSpeed());
+    connect(scrollSpeedSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+            [](double v) { ChatView::setScrollSpeed(v); });
+    scrollForm->addRow(tr("Chat scroll speed (wheel)"), scrollSpeedSpin);
+    layout->addSpacing(4);
+    layout->addLayout(scrollForm);
 
     layout->addStretch();
     pages->addWidget(page);
@@ -217,6 +246,7 @@ void SettingsWindow::loadSettings()
     QSettings settings;
     inMemoryCacheCheckbox->setChecked(settings.value("general/in_memory_cache", false).toBool());
     downloadImagesCheckbox->setChecked(Core::ImageManager::networkImagesEnabled());
+    invertWheelCheckbox->setChecked(ChatView::wheelInverted());
     showNicknamesCheckbox->setChecked(Core::UserManager::showNicknames());
     showTypingCheckbox->setChecked(TypingIndicator::showTyping());
 
