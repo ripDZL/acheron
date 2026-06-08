@@ -140,10 +140,14 @@ private:
     void loadCodecSettings();
     void applyCodecSettingsToManager();
     void installResetOnDoubleClick(QWidget *widget, const QVariant &defaultValue);
-
     void installPttHook();
-    Core::AV::VoiceManager *currentVoiceManager() const;
+    void removePttHook();
 
+public:
+    // Accessed by global hook callback - do not call directly
+    Core::AV::VoiceManager *currentVoiceManager() const { return voiceManager; }
+
+private:
     void onParticipantJoined(Core::Snowflake userId);
     void onParticipantLeft(Core::Snowflake userId);
     void onParticipantUpdated(Core::Snowflake userId);
@@ -179,10 +183,12 @@ private:
     QLabel *outputVolumeValue;
     QLabel *vadThresholdValue;
 
-    QCheckBox *pttModeCheckbox = nullptr;
-    QPushButton *pttBtn = nullptr;
+    // Push-to-Talk controls
+    QCheckBox   *pttModeCheckbox = nullptr;
+    QPushButton *pttBtn          = nullptr;
     QKeySequenceEdit *pttKeyEdit = nullptr;
-    int pttKey = Qt::Key_CapsLock; // default PTT key
+    QPushButton *pttUnbindBtn    = nullptr;
+    int          pttKey          = Qt::Key_CapsLock;
 
     QToolButton *advancedToggle = nullptr;
     QWidget *advancedContainer = nullptr;
