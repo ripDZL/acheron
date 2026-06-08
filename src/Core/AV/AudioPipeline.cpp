@@ -192,7 +192,7 @@ void AudioPipeline::setPttMode(bool enabled)
 void AudioPipeline::setPttActive(bool active)
 {
     pttActive.store(active, std::memory_order_relaxed);
-    qCInfo(LogVoice) << "AudioPipeline::setPttActive ->" << active;
+    qCDebug(LogVoice) << "AudioPipeline::setPttActive ->" << active;
 }
 
 void AudioPipeline::initializeEncoder()
@@ -281,7 +281,10 @@ void AudioPipeline::onAudioCaptured(const QByteArray &pcmData)
     }
 
     if (rmsThrottleTimer.elapsed() >= RMS_EMIT_INTERVAL_MS) {
-        emit audioLevelChanged(rms);
+        // In PTT mode, only animate the meter while the key is held (actually
+        // transmitting) so it doesn't look like an open mic when idle.
+        float meterRms = (pttMode && !voiceDetected) ? 0.0f : rms;
+        emit audioLevelChanged(meterRms);
         rmsThrottleTimer.restart();
     }
 
