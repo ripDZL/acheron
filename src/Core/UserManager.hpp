@@ -42,6 +42,11 @@ public:
 
     [[nodiscard]] QString getDisplayName(Snowflake userId, Snowflake guildId = Snowflake::Invalid);
 
+    // Global display preference: when false, server nicknames are ignored and
+    // the user's base display/username is shown instead. Backed by QSettings.
+    static bool showNicknames();
+    static void setShowNicknames(bool on);
+
     void saveUser(const Discord::User &user);
     void saveUsers(const QList<Discord::User> &users);
     void saveMember(Snowflake guildId, Snowflake userId, const Discord::Member &member);

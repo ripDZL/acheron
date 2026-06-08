@@ -7,6 +7,8 @@
 #include <QFile>
 #include <QUrlQuery>
 #include <QApplication>
+#include <QSettings>
+#include <atomic>
 
 #include "Logging.hpp"
 
@@ -131,6 +133,9 @@ QPixmap ImageManager::placeholder(const QSize &size)
 
 void ImageManager::request(const QUrl &url, const QSize &size, PinGroup pin)
 {
+    if (!networkImagesEnabled())
+        return; // data-saver: don't fetch anything new from the network
+
     ImageRequestKey k{ url, size };
     if (requests.contains(k)) {
         // promote
@@ -280,6 +285,28 @@ QUrl ImageManager::buildOptimizedUrl(const QUrl &proxyUrl, const QSize &displayS
 
     optimized.setQuery(query);
     return optimized;
+}
+
+namespace {
+std::atomic<bool> g_netImages{true};
+std::atomic<bool> g_netImagesLoaded{false};
+} // namespace
+
+bool ImageManager::networkImagesEnabled()
+{
+    if (!g_netImagesLoaded.load(std::memory_order_acquire)) {
+        g_netImages.store(QSettings().value("general/network_images", true).toBool(),
+                          std::memory_order_relaxed);
+        g_netImagesLoaded.store(true, std::memory_order_release);
+    }
+    return g_netImages.load(std::memory_order_relaxed);
+}
+
+void ImageManager::setNetworkImagesEnabled(bool on)
+{
+    g_netImages.store(on, std::memory_order_relaxed);
+    g_netImagesLoaded.store(true, std::memory_order_release);
+    QSettings().setValue("general/network_images", on);
 }
 
 } // namespace Core

@@ -2,6 +2,9 @@
 
 #include "Logging.hpp"
 
+#include <QSettings>
+#include <atomic>
+
 namespace Acheron {
 namespace Core {
 
@@ -59,13 +62,35 @@ QString UserManager::getDisplayName(Snowflake userId, Snowflake guildId)
     if (!user)
         return tr("Unknown User");
 
-    if (guildId.isValid()) {
+    if (showNicknames() && guildId.isValid()) {
         auto member = getMember(guildId, userId);
         if (member && member->nick.hasValue())
             return member->nick;
     }
 
     return user->getDisplayName();
+}
+
+namespace {
+std::atomic<bool> g_showNicknames{true};
+std::atomic<bool> g_showNicknamesLoaded{false};
+} // namespace
+
+bool UserManager::showNicknames()
+{
+    if (!g_showNicknamesLoaded.load(std::memory_order_acquire)) {
+        g_showNicknames.store(QSettings().value("discord/show_nicknames", true).toBool(),
+                              std::memory_order_relaxed);
+        g_showNicknamesLoaded.store(true, std::memory_order_release);
+    }
+    return g_showNicknames.load(std::memory_order_relaxed);
+}
+
+void UserManager::setShowNicknames(bool on)
+{
+    g_showNicknames.store(on, std::memory_order_relaxed);
+    g_showNicknamesLoaded.store(true, std::memory_order_release);
+    QSettings().setValue("discord/show_nicknames", on);
 }
 
 void UserManager::saveUser(const Discord::User &user)

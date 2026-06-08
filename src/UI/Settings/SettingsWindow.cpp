@@ -1,6 +1,9 @@
 #include "SettingsWindow.hpp"
 
 #include "UI/Theme.hpp"
+#include "UI/TypingIndicator.hpp"
+#include "Core/ImageManager.hpp"
+#include "Core/UserManager.hpp"
 
 #include <QColorDialog>
 #include <QFontDatabase>
@@ -26,31 +29,140 @@ void SettingsWindow::setupUi()
     categoryList = new QListWidget(this);
     categoryList->setFixedWidth(150);
     categoryList->addItem(tr("General"));
-    categoryList->addItem(tr("Appearance"));
+    categoryList->addItem(tr("Discord"));
+    categoryList->addItem(tr("Style"));
+    categoryList->addItem(tr("Language"));
+    categoryList->addItem(tr("Audio"));
     categoryList->setCurrentRow(0);
 
     pages = new QStackedWidget(this);
 
-    auto *generalPage = new QWidget(this);
-    auto *generalLayout = new QVBoxLayout(generalPage);
-
-    inMemoryCacheCheckbox = new QCheckBox(tr("In-memory cache database (requires restart)"), generalPage);
-    generalLayout->addWidget(inMemoryCacheCheckbox);
-    generalLayout->addStretch();
-
-    pages->addWidget(generalPage);
-
+    // Pages are added in the same order as the category list.
+    buildGeneralPage();
+    buildDiscordPage();
     buildAppearancePage();
+    buildLanguagePage();
+    buildAudioPage();
 
     connect(categoryList, &QListWidget::currentRowChanged, pages, &QStackedWidget::setCurrentIndex);
 
-    connect(inMemoryCacheCheckbox, &QCheckBox::toggled, this, [](bool checked) {
-        QSettings settings;
-        settings.setValue("general/in_memory_cache", checked);
-    });
-
     mainLayout->addWidget(categoryList);
     mainLayout->addWidget(pages, 1);
+}
+
+void SettingsWindow::buildGeneralPage()
+{
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+
+    inMemoryCacheCheckbox = new QCheckBox(tr("In-memory cache database (requires restart)"), page);
+    layout->addWidget(inMemoryCacheCheckbox);
+    connect(inMemoryCacheCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        QSettings().setValue("general/in_memory_cache", checked);
+    });
+
+    downloadImagesCheckbox = new QCheckBox(tr("Download images and avatars from the network"), page);
+    downloadImagesCheckbox->setToolTip(
+            tr("Uncheck to save bandwidth. Cached images still display; new ones won't be fetched."));
+    layout->addWidget(downloadImagesCheckbox);
+    connect(downloadImagesCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        Core::ImageManager::setNetworkImagesEnabled(checked);
+    });
+
+    layout->addStretch();
+    pages->addWidget(page);
+}
+
+void SettingsWindow::buildDiscordPage()
+{
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+
+    auto *displayLabel = new QLabel(tr("Display Features"), page);
+    QFont bf = displayLabel->font();
+    bf.setBold(true);
+    displayLabel->setFont(bf);
+    layout->addWidget(displayLabel);
+
+    showNicknamesCheckbox = new QCheckBox(tr("Show nicknames in chat and member list"), page);
+    showNicknamesCheckbox->setToolTip(tr("When off, shows usernames instead of per-server nicknames."));
+    layout->addWidget(showNicknamesCheckbox);
+    connect(showNicknamesCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        Core::UserManager::setShowNicknames(checked);
+    });
+
+    showTypingCheckbox = new QCheckBox(tr("Show when users are typing"), page);
+    layout->addWidget(showTypingCheckbox);
+    connect(showTypingCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        TypingIndicator::setShowTyping(checked);
+    });
+
+    auto *note = new QLabel(
+            tr("Nickname and image changes apply to newly displayed messages; switch channels "
+               "or restart to refresh existing ones."),
+            page);
+    note->setWordWrap(true);
+    note->setStyleSheet("color: palette(mid);");
+    layout->addSpacing(8);
+    layout->addWidget(note);
+
+    layout->addStretch();
+    pages->addWidget(page);
+}
+
+void SettingsWindow::buildLanguagePage()
+{
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+
+    auto *row = new QHBoxLayout;
+    row->addWidget(new QLabel(tr("Language:"), page));
+    languageCombo = new QComboBox(page);
+    languageCombo->addItem(tr("English (US)"), "en_US");
+    languageCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    row->addWidget(languageCombo, 1);
+    layout->addLayout(row);
+
+    auto *note = new QLabel(
+            tr("Additional translations aren't bundled yet. Your selection is saved and will "
+               "take effect as more languages are added."),
+            page);
+    note->setWordWrap(true);
+    note->setStyleSheet("color: palette(mid);");
+    layout->addSpacing(8);
+    layout->addWidget(note);
+
+    connect(languageCombo, &QComboBox::currentIndexChanged, this, [this](int) {
+        QSettings().setValue("language/locale", languageCombo->currentData().toString());
+    });
+
+    layout->addStretch();
+    pages->addWidget(page);
+}
+
+void SettingsWindow::buildAudioPage()
+{
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+
+    auto *header = new QLabel(tr("Voice & Audio"), page);
+    QFont bf = header->font();
+    bf.setBold(true);
+    header->setFont(bf);
+    layout->addWidget(header);
+
+    auto *info = new QLabel(
+            tr("Microphone and output device selection, input/output levels, voice-activity "
+               "sensitivity, and Push-to-Talk are configured in the Voice panel, which opens "
+               "from the voice status bar when you're connected to a voice channel.\n\n"
+               "These controls live there because they require an active voice connection. "
+               "Inline audio settings here are planned as a follow-up."),
+            page);
+    info->setWordWrap(true);
+    layout->addWidget(info);
+
+    layout->addStretch();
+    pages->addWidget(page);
 }
 
 QPushButton *SettingsWindow::makeColorSwatch(const QColor &initial)
@@ -224,6 +336,14 @@ void SettingsWindow::loadSettings()
 {
     QSettings settings;
     inMemoryCacheCheckbox->setChecked(settings.value("general/in_memory_cache", false).toBool());
+    downloadImagesCheckbox->setChecked(Core::ImageManager::networkImagesEnabled());
+    showNicknamesCheckbox->setChecked(Core::UserManager::showNicknames());
+    showTypingCheckbox->setChecked(TypingIndicator::showTyping());
+
+    QString locale = settings.value("language/locale", "en_US").toString();
+    int li = languageCombo->findData(locale);
+    if (li >= 0)
+        languageCombo->setCurrentIndex(li);
 }
 
 } // namespace UI

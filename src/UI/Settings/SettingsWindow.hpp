@@ -16,7 +16,11 @@ public:
 private:
     void setupUi();
     void loadSettings();
+    void buildGeneralPage();
+    void buildDiscordPage();
     void buildAppearancePage();
+    void buildLanguagePage();
+    void buildAudioPage();
     QPushButton *makeColorSwatch(const QColor &initial);
     void setSwatchColor(QPushButton *btn, const QColor &c);
     void applyAndSaveTheme();
@@ -25,7 +29,15 @@ private:
     QStackedWidget *pages;
 
     // general
-    QCheckBox *inMemoryCacheCheckbox;
+    QCheckBox *inMemoryCacheCheckbox = nullptr;
+    QCheckBox *downloadImagesCheckbox = nullptr;
+
+    // discord
+    QCheckBox *showNicknamesCheckbox = nullptr;
+    QCheckBox *showTypingCheckbox = nullptr;
+
+    // language
+    QComboBox *languageCombo = nullptr;
 
     // appearance
     ThemeColors currentTheme;

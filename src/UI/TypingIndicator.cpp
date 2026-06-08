@@ -1,6 +1,8 @@
 #include "TypingIndicator.hpp"
 #include <QHBoxLayout>
 #include <QMovie>
+#include <QSettings>
+#include <atomic>
 
 namespace Acheron {
 namespace UI {
@@ -36,13 +38,35 @@ void TypingIndicator::setRoleColorResolver(RoleColorResolver resolver)
 
 void TypingIndicator::setTypers(const QList<Core::TyperInfo> &typers)
 {
-    if (typers.isEmpty()) {
+    if (typers.isEmpty() || !showTyping()) {
         label->setVisible(false);
         return;
     }
 
     label->setText(formatText(typers));
     label->setVisible(true);
+}
+
+namespace {
+std::atomic<bool> g_showTyping{true};
+std::atomic<bool> g_showTypingLoaded{false};
+} // namespace
+
+bool TypingIndicator::showTyping()
+{
+    if (!g_showTypingLoaded.load(std::memory_order_acquire)) {
+        g_showTyping.store(QSettings().value("discord/show_typing", true).toBool(),
+                           std::memory_order_relaxed);
+        g_showTypingLoaded.store(true, std::memory_order_release);
+    }
+    return g_showTyping.load(std::memory_order_relaxed);
+}
+
+void TypingIndicator::setShowTyping(bool on)
+{
+    g_showTyping.store(on, std::memory_order_relaxed);
+    g_showTypingLoaded.store(true, std::memory_order_release);
+    QSettings().setValue("discord/show_typing", on);
 }
 
 QString TypingIndicator::coloredName(const Core::TyperInfo &typer)

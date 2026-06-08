@@ -51,6 +51,11 @@ public:
 
     [[nodiscard]] static QSize calculateDisplaySize(const QSize &original);
 
+    // Global data-saver: when false, no images are fetched from the network
+    // (cached images still display). Backed by QSettings.
+    static bool networkImagesEnabled();
+    static void setNetworkImagesEnabled(bool on);
+
 signals:
     void imageFetched(const QUrl &url, const QSize &size, const QPixmap &pixmap);
 

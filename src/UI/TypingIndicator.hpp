@@ -21,6 +21,10 @@ public:
 
     void setTypers(const QList<Core::TyperInfo> &typers);
 
+    // Global preference: when false, the typing indicator is never shown.
+    static bool showTyping();
+    static void setShowTyping(bool on);
+
 private:
     QLabel *label;
     RoleColorResolver roleColorResolver;
