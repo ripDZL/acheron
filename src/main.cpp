@@ -1,9 +1,9 @@
 #include "App.hpp"
 #include "UI/MainWindow.hpp"
-#include "UI/Theme.hpp"
 #include "Storage/DatabaseManager.hpp"
 #include "Core/Session.hpp"
 #include "Core/Logging.hpp"
+#include "Core/Theme/Manager.hpp"
 #include "Discord/CurlUtils.hpp"
 
 #include <curl/curl.h>
@@ -62,37 +62,14 @@ int main(int argc, char *argv[])
     app.setApplicationName("Acheron");
     app.setStyle("Fusion");
 
+    Core::Theme::Manager::instance().load();
+    Core::Theme::Manager::instance().apply();
+    Core::Theme::Manager::instance().applyFonts();
+
     registerMetatypes();
 
     QNetworkAccessManager buildNumberNam;
     Discord::CurlUtils::fetchBuildNumber(&buildNumberNam);
-
-#if 1
-    {
-        Acheron::UI::ThemeColors themeColors = Acheron::UI::Theme::load();
-        Acheron::UI::Theme::apply(themeColors);
-    }
-#endif
-
-#if 0
-    QPalette warmPastelPalette;
-
-    warmPastelPalette.setColor(QPalette::Window, QColor(255, 244, 230)); // soft cream background
-    warmPastelPalette.setColor(QPalette::WindowText, QColor(85, 52, 52)); // muted brown text
-    warmPastelPalette.setColor(QPalette::Base, QColor(255, 250, 240)); // input backgrounds
-    warmPastelPalette.setColor(QPalette::AlternateBase,
-                               QColor(255, 239, 220)); // slightly darker for alternating rows
-    warmPastelPalette.setColor(QPalette::ToolTipBase, QColor(255, 250, 240)); // tooltip background
-    warmPastelPalette.setColor(QPalette::ToolTipText, QColor(85, 52, 52)); // tooltip text
-    warmPastelPalette.setColor(QPalette::Text, QColor(102, 68, 68)); // standard text
-    warmPastelPalette.setColor(QPalette::Button, QColor(255, 214, 179)); // button background
-    warmPastelPalette.setColor(QPalette::ButtonText, QColor(102, 68, 68)); // button text
-    warmPastelPalette.setColor(QPalette::BrightText, QColor(255, 102, 102)); // for alerts
-    warmPastelPalette.setColor(QPalette::Highlight, QColor(255, 179, 128)); // selection color
-    warmPastelPalette.setColor(QPalette::HighlightedText, QColor(255, 244, 230)); // selection text
-
-    qApp->setPalette(warmPastelPalette);
-#endif
 
     Acheron::Core::Logger::init();
 

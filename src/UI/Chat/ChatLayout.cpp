@@ -1,4 +1,9 @@
 #include "ChatLayout.hpp"
+
+#include "Core/Theme/Fonts.hpp"
+#include "Core/Theme/Manager.hpp"
+#include "Core/Theme/Tokens.hpp"
+
 #include <QPainter>
 #include <QGraphicsBlurEffect>
 #include <QGraphicsScene>
@@ -14,12 +19,39 @@ QRect dateSeparatorRectForRow(const QRect &rowRect)
     return QRect(rowRect.left(), rowRect.top(), rowRect.width(), separatorHeight());
 }
 
+static QString richTextStyleSheet()
+{
+    using Core::Theme::Manager;
+    using Core::Theme::Token;
+    const QColor link = Manager::instance().color(Token::LinkText);
+    const QColor mentionText = Manager::instance().color(Token::MentionText);
+    const QColor mentionBg = Manager::instance().color(Token::MentionBg);
+    const QString mentionBgRgba = QStringLiteral("rgba(%1, %2, %3, %4)")
+                                          .arg(mentionBg.red())
+                                          .arg(mentionBg.green())
+                                          .arg(mentionBg.blue())
+                                          .arg(QString::number(mentionBg.alphaF(), 'f', 3));
+    const QFont codeFont = Manager::instance().font(Core::Theme::FontRole::Code);
+    QString code = QStringLiteral("code { font-family: '%1';").arg(codeFont.family());
+    if (codeFont.pointSizeF() > 0)
+        code += QStringLiteral(" font-size: %1pt;").arg(codeFont.pointSizeF());
+    code += QStringLiteral(" }");
+
+    return QStringLiteral("a { color: %1; } "
+                          ".mention { color: %2; background-color: %3; text-decoration: none; } ")
+                   .arg(link.name(QColor::HexRgb))
+                   .arg(mentionText.name(QColor::HexRgb))
+                   .arg(mentionBgRgba) +
+           code;
+}
+
 void setupDocument(QTextDocument &doc, const QString &htmlContent, const QFont &font, int textWidth)
 {
     QString wrapped = QString("<div style=\"white-space: pre-wrap;\">%1</div>")
                               .arg(htmlContent);
 
     doc.setDefaultFont(font);
+    doc.setDefaultStyleSheet(richTextStyleSheet());
     doc.setHtml(wrapped);
     doc.setTextWidth(textWidth);
     doc.setDocumentMargin(0);

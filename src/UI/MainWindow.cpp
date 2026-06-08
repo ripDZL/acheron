@@ -30,6 +30,7 @@
 #include "Core/ImageManager.hpp"
 #include "Core/MemberListManager.hpp"
 #include "Core/Session.hpp"
+#include "Core/Theme/Manager.hpp"
 #ifndef ACHERON_NO_VOICE
 #  include "Core/AV/VoiceManager.hpp"
 #  include "VoiceStatusBar.hpp"
@@ -497,6 +498,7 @@ void MainWindow::setupUi()
     connectionBanner = new ConnectionBanner(rightSideWidget);
     tabBar = new TabBar(session->getImageManager(), rightSideWidget);
     chatView = new ChatView(rightSideWidget);
+    chatView->setFont(Core::Theme::Manager::instance().font(Core::Theme::FontRole::Message));
     messageInput = new MessageInput(rightSideWidget);
     typingIndicator = new TypingIndicator(rightSideWidget);
     slowModeIndicator = new SlowModeIndicator(rightSideWidget);
@@ -537,6 +539,21 @@ void MainWindow::setupUi()
     memberListView = new MemberListView(central);
     memberListView->setModel(memberListModel);
     memberListView->setItemDelegate(new MemberListDelegate(memberListView));
+
+    connect(&Core::Theme::Manager::instance(), &Core::Theme::Manager::themeChanged, this, [this]() {
+        chatModel->invalidateDocCache();
+        chatView->viewport()->update();
+        channelTree->viewport()->update();
+        memberListView->viewport()->update();
+    });
+
+    connect(&Core::Theme::Manager::instance(), &Core::Theme::Manager::metricsChanged, this, [this]() {
+        chatView->setFont(Core::Theme::Manager::instance().font(Core::Theme::FontRole::Message));
+        chatModel->invalidateLayout();
+        chatView->doItemsLayout();
+        channelTree->viewport()->update();
+        memberListView->viewport()->update();
+    });
 
     connect(memberListView, &QWidget::customContextMenuRequested, this,
             [this](const QPoint &pos) {

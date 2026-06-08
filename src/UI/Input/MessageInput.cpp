@@ -10,6 +10,7 @@ namespace UI {
 
 ChatTextEdit::ChatTextEdit(QWidget *parent) : QTextEdit(parent)
 {
+    setObjectName("MessageInput");
     document()->setDocumentMargin(0);
     setAcceptRichText(false);
 
