@@ -905,6 +905,12 @@ void ChatModel::invalidateDocCache()
     docCacheWidth = 0;
 }
 
+void ChatModel::invalidateLayout()
+{
+    invalidateDocCache();
+    sizeCache.clear();
+}
+
 void ChatModel::invalidateDocCacheForMessage(Snowflake messageId)
 {
     docCache.remove(bodyDocKey(messageId));

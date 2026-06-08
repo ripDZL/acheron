@@ -1,5 +1,6 @@
 #include "Core/Theme/Manager.hpp"
 
+#include "Core/Theme/Fonts.hpp"
 #include "Core/Theme/Stylesheet.hpp"
 
 #include <QApplication>
@@ -28,6 +29,14 @@ QColor Manager::color(Token token) const
     return descriptor(token).defaultColor;
 }
 
+QFont Manager::font(FontRole role) const
+{
+    auto it = fontOverrides.constFind(role);
+    if (it != fontOverrides.constEnd())
+        return it.value();
+    return fontDescriptor(role).defaultFont;
+}
+
 bool Manager::hasOverride(Token token) const
 {
     return overrides.contains(token);
@@ -47,11 +56,27 @@ void Manager::clearOverride(Token token)
 void Manager::resetAll()
 {
     overrides.clear();
+    fontOverrides.clear();
 }
 
 void Manager::setOverrides(const QHash<Token, QColor> &overrides)
 {
     this->overrides = overrides;
+}
+
+bool Manager::hasFontOverride(FontRole role) const
+{
+    return fontOverrides.contains(role);
+}
+
+void Manager::setFontOverride(FontRole role, const QFont &font)
+{
+    fontOverrides.insert(role, font);
+}
+
+void Manager::clearFontOverride(FontRole role)
+{
+    fontOverrides.remove(role);
 }
 
 QPalette Manager::buildPalette() const
@@ -80,6 +105,12 @@ void Manager::apply()
     emit themeChanged();
 }
 
+void Manager::applyFonts()
+{
+    qApp->setFont(font(FontRole::Ui));
+    emit metricsChanged();
+}
+
 QString Manager::defaultThemePath()
 {
     const QString dirPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -100,6 +131,11 @@ QJsonObject Manager::toObject(bool includeDefaults) const
         const QString hex = c.name(c.alpha() == 255 ? QColor::HexRgb : QColor::HexArgb);
         obj[QString::fromUtf8(d.id)] = hex;
     }
+    for (const FontDescriptor &d : fontRegistry()) {
+        if (!includeDefaults && !fontOverrides.contains(d.role))
+            continue;
+        obj[QString::fromUtf8(d.id)] = font(d.role).toString();
+    }
     return obj;
 }
 
@@ -108,21 +144,26 @@ void Manager::loadFromObject(const QJsonObject &obj)
     for (auto it = obj.begin(); it != obj.end(); ++it) {
         if (it.key().startsWith(QLatin1Char('_')))
             continue;
-        const TokenDescriptor *d = findById(it.key());
-        if (!d)
-            continue;
         if (!it.value().isString())
             continue;
-        const QColor c(it.value().toString());
-        if (!c.isValid())
-            continue;
-        overrides.insert(d->token, c);
+        const QString value = it.value().toString();
+
+        if (const TokenDescriptor *d = findById(it.key())) {
+            const QColor c(value);
+            if (c.isValid())
+                overrides.insert(d->token, c);
+        } else if (const FontDescriptor *fd = findFontById(it.key())) {
+            QFont parsed;
+            if (parsed.fromString(value))
+                fontOverrides.insert(fd->role, parsed);
+        }
     }
 }
 
 bool Manager::load()
 {
     overrides.clear();
+    fontOverrides.clear();
     QFile file(defaultThemePath());
     if (!file.open(QIODevice::ReadOnly))
         return false;
@@ -176,6 +217,7 @@ bool Manager::importFrom(const QString &path)
         return false;
 
     overrides.clear();
+    fontOverrides.clear();
     loadFromObject(doc.object());
     return true;
 }

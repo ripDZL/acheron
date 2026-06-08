@@ -1,5 +1,6 @@
 #include "ChatLayout.hpp"
 
+#include "Core/Theme/Fonts.hpp"
 #include "Core/Theme/Manager.hpp"
 #include "Core/Theme/Tokens.hpp"
 
@@ -30,11 +31,18 @@ static QString richTextStyleSheet()
                                           .arg(mentionBg.green())
                                           .arg(mentionBg.blue())
                                           .arg(QString::number(mentionBg.alphaF(), 'f', 3));
+    const QFont codeFont = Manager::instance().font(Core::Theme::FontRole::Code);
+    QString code = QStringLiteral("code { font-family: '%1';").arg(codeFont.family());
+    if (codeFont.pointSizeF() > 0)
+        code += QStringLiteral(" font-size: %1pt;").arg(codeFont.pointSizeF());
+    code += QStringLiteral(" }");
+
     return QStringLiteral("a { color: %1; } "
-                          ".mention { color: %2; background-color: %3; text-decoration: none; }")
-            .arg(link.name(QColor::HexRgb))
-            .arg(mentionText.name(QColor::HexRgb))
-            .arg(mentionBgRgba);
+                          ".mention { color: %2; background-color: %3; text-decoration: none; } ")
+                   .arg(link.name(QColor::HexRgb))
+                   .arg(mentionText.name(QColor::HexRgb))
+                   .arg(mentionBgRgba) +
+           code;
 }
 
 void setupDocument(QTextDocument &doc, const QString &htmlContent, const QFont &font, int textWidth)

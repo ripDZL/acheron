@@ -64,6 +64,7 @@ int main(int argc, char *argv[])
 
     Core::Theme::Manager::instance().load();
     Core::Theme::Manager::instance().apply();
+    Core::Theme::Manager::instance().applyFonts();
 
     registerMetatypes();
 

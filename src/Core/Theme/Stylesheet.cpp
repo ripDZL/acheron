@@ -34,7 +34,7 @@ QString buildStyleSheet()
 
     QString qss;
 
-    qss += QStringLiteral("QWidget {"
+    /* qss += QStringLiteral("QWidget {"
                           "  background-color: %1;"
                           "  color: %2;"
                           "  selection-background-color: %3;"
@@ -89,8 +89,17 @@ QString buildStyleSheet()
                           "  padding: 4px;"
                           "}")
                    .arg(hex(tooltipBg), hex(tooltipText), hex(accentMuted));
+                   */
 
     qss += "#MemberList QScrollBar::handle:vertical { min-height: 40px; }";
+
+    qss += QStringLiteral("#MessageInput {"
+                          "  background-color: %1;"
+                          "  border: 1px solid %2;"
+                          "  border-radius: 6px;"
+                          "  padding: 8px 10px; }"
+                          "#MessageInput:focus { border: 1px solid %3; }")
+                   .arg(hex(baseBg), hex(divider), hex(highlight));
 
     return qss;
 }

@@ -1,5 +1,6 @@
 #include "AppearancePage.hpp"
 
+#include "Core/Theme/Fonts.hpp"
 #include "Core/Theme/Generator.hpp"
 #include "Core/Theme/Manager.hpp"
 #include "Core/Theme/Tokens.hpp"
@@ -7,6 +8,8 @@
 #include <QColorDialog>
 #include <QComboBox>
 #include <QFileDialog>
+#include <QFontComboBox>
+#include <QFontInfo>
 #include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -14,6 +17,8 @@
 #include <QPushButton>
 #include <QRandomGenerator>
 #include <QScrollArea>
+#include <QSignalBlocker>
+#include <QSpinBox>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -22,6 +27,7 @@
 namespace Acheron {
 namespace UI {
 
+using Core::Theme::FontRole;
 using Core::Theme::Manager;
 using Core::Theme::Token;
 using Core::Theme::TokenDescriptor;
@@ -104,6 +110,64 @@ AppearancePage::AppearancePage(QWidget *parent)
     auto *content = new QWidget(scroll);
     auto *layout = new QVBoxLayout(content);
 
+    auto *fontsHeader = new QLabel(tr("Fonts"), content);
+    {
+        QFont hf = fontsHeader->font();
+        hf.setBold(true);
+        fontsHeader->setFont(hf);
+    }
+    layout->addWidget(fontsHeader);
+
+    for (const Core::Theme::FontDescriptor &fd : Core::Theme::fontRegistry()) {
+        const FontRole role = fd.role;
+
+        auto *row = new QHBoxLayout();
+        row->addWidget(new QLabel(QString::fromUtf8(fd.label), content));
+        row->addStretch(1);
+
+        auto *family = new QFontComboBox(content);
+        family->setCurrentFont(Manager::instance().font(role));
+        row->addWidget(family);
+
+        auto *size = new QSpinBox(content);
+        size->setRange(6, 40);
+        size->setSuffix(" pt");
+        size->setValue(QFontInfo(Manager::instance().font(role)).pointSize());
+        row->addWidget(size);
+
+        auto *reset = new QToolButton(content);
+        reset->setText(tr("Reset"));
+        row->addWidget(reset);
+
+        layout->addLayout(row);
+
+        familyCombos.insert(role, family);
+        sizeSpins.insert(role, size);
+
+        connect(family, &QFontComboBox::currentFontChanged, this, [this, role](const QFont &f) {
+            QFont font = Manager::instance().font(role);
+            font.setFamily(f.family());
+            Manager::instance().setFontOverride(role, font);
+            Manager::instance().applyFonts();
+            Manager::instance().save();
+        });
+
+        connect(size, qOverload<int>(&QSpinBox::valueChanged), this, [this, role](int pt) {
+            QFont font = Manager::instance().font(role);
+            font.setPointSize(pt);
+            Manager::instance().setFontOverride(role, font);
+            Manager::instance().applyFonts();
+            Manager::instance().save();
+        });
+
+        connect(reset, &QToolButton::clicked, this, [this, role]() {
+            Manager::instance().clearFontOverride(role);
+            Manager::instance().applyFonts();
+            Manager::instance().save();
+            refreshFontControls();
+        });
+    }
+
     QString currentGroup;
     for (const TokenDescriptor &d : Core::Theme::registry()) {
         const QString group = QString::fromUtf8(d.group);
@@ -178,8 +242,10 @@ AppearancePage::AppearancePage(QWidget *parent)
     connect(resetAll, &QPushButton::clicked, this, [this]() {
         Manager::instance().resetAll();
         Manager::instance().apply();
+        Manager::instance().applyFonts();
         Manager::instance().save();
         rebuildSwatches();
+        refreshFontControls();
     });
 
     connect(exportBtn, &QPushButton::clicked, this, [this]() {
@@ -196,8 +262,10 @@ AppearancePage::AppearancePage(QWidget *parent)
             return;
         if (Manager::instance().importFrom(path)) {
             Manager::instance().apply();
+            Manager::instance().applyFonts();
             Manager::instance().save();
             rebuildSwatches();
+            refreshFontControls();
         }
     });
 }
@@ -207,6 +275,22 @@ void AppearancePage::rebuildSwatches()
     for (auto it = swatches.begin(); it != swatches.end(); ++it) {
         const Token token = it.key();
         it.value()->setStyleSheet(swatchStyle(Manager::instance().color(token)));
+    }
+}
+
+void AppearancePage::refreshFontControls()
+{
+    for (auto it = familyCombos.begin(); it != familyCombos.end(); ++it) {
+        const FontRole role = it.key();
+        const QFont f = Manager::instance().font(role);
+
+        QSignalBlocker familyBlock(it.value());
+        it.value()->setCurrentFont(f);
+
+        if (QSpinBox *size = sizeSpins.value(role)) {
+            QSignalBlocker sizeBlock(size);
+            size->setValue(QFontInfo(f).pointSize());
+        }
     }
 }
 

@@ -218,6 +218,7 @@ public:
     void cacheDocument(const DocCacheKey &key, QTextDocument *doc) const;
     void invalidateDocCache();
     void invalidateDocCacheForMessage(Snowflake messageId);
+    void invalidateLayout();
 
 public slots:
     void setActiveChannel(Snowflake channelId, Snowflake guildId = Snowflake::Invalid);

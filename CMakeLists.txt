@@ -109,6 +109,7 @@ set(PROJECT_SOURCES
     src/Core/Theme/Manager.cpp
     src/Core/Theme/Generator.cpp
     src/Core/Theme/Stylesheet.cpp
+    src/Core/Theme/Fonts.cpp
     src/UI/MainWindow.cpp
     src/UI/BrowserCaptchaResolver.cpp
     src/UI/TypingIndicator.cpp
