@@ -2,6 +2,7 @@
 #include "Core/EmojiSegmenter.hpp"
 
 #include <QRegularExpression>
+#include <QSettings>
 
 using Acheron::Core::countUnicodeEmojisSegmented;
 
@@ -164,7 +165,11 @@ QString Parser::toHtmlInternal(const QList<AstNode> &nodes, bool jumboEmoji)
         if (node.type == "customEmoji") {
             QString id = node.content;
             QString name = node.attributes["name"].toString();
-            int emojiSize = jumboEmoji ? 44 : 22;
+            static int baseEmojiSize = []() {
+                int v = QSettings().value("discord/emoji_size", 22).toInt();
+                return v < 12 ? 12 : (v > 64 ? 64 : v);
+            }();
+            int emojiSize = jumboEmoji ? (baseEmojiSize * 2) : baseEmojiSize;
             QString url = QString("https://cdn.discordapp.com/emojis/%1.webp?size=128").arg(id);
             result += QString(R"(<img src="%1" alt=":%2:" width="%3" height="%3" style="vertical-align: middle;" />)")
                               .arg(url.toHtmlEscaped())

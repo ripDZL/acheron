@@ -2,6 +2,7 @@
 
 #include <QRect>
 #include <QPoint>
+#include <QSettings>
 #include <QTextDocument>
 #include <QAbstractItemView>
 #include <QModelIndex>
@@ -16,13 +17,25 @@ constexpr int padding() noexcept
 {
     return 8;
 }
-constexpr int blockTopPadding() noexcept
+// Vertical space above each message block. Base 14 plus a user-configurable
+// "extra message spacing" amount (loaded once at startup; applies on restart).
+inline int blockTopPadding() noexcept
 {
-    return 14;
+    static int extra = []() {
+        int v = QSettings().value("general/message_spacing", 0).toInt();
+        return v < 0 ? 0 : (v > 40 ? 40 : v);
+    }();
+    return 14 + extra;
 }
-constexpr int avatarSize() noexcept
+// Avatar square size in the chat log. User-configurable (loaded once at
+// startup; applies on restart).
+inline int avatarSize() noexcept
 {
-    return 32;
+    static int v = []() {
+        int s = QSettings().value("discord/avatar_size", 32).toInt();
+        return s < 16 ? 16 : (s > 128 ? 128 : s);
+    }();
+    return v;
 }
 constexpr int separatorHeight() noexcept
 {

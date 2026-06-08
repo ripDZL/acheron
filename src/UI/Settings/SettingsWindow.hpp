@@ -31,10 +31,13 @@ private:
     // general
     QCheckBox *inMemoryCacheCheckbox = nullptr;
     QCheckBox *downloadImagesCheckbox = nullptr;
+    QSpinBox *messageSpacingSpin = nullptr;
 
     // discord
     QCheckBox *showNicknamesCheckbox = nullptr;
     QCheckBox *showTypingCheckbox = nullptr;
+    QSpinBox *avatarSizeSpin = nullptr;
+    QSpinBox *emojiSizeSpin = nullptr;
 
     // language
     QComboBox *languageCombo = nullptr;

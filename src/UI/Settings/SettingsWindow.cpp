@@ -69,6 +69,24 @@ void SettingsWindow::buildGeneralPage()
         Core::ImageManager::setNetworkImagesEnabled(checked);
     });
 
+    auto *spacingForm = new QFormLayout;
+    spacingForm->setFieldGrowthPolicy(QFormLayout::FieldsStayAtSizeHint);
+    messageSpacingSpin = new QSpinBox(page);
+    messageSpacingSpin->setRange(0, 40);
+    messageSpacingSpin->setSuffix(tr(" px"));
+    messageSpacingSpin->setValue(QSettings().value("general/message_spacing", 0).toInt());
+    connect(messageSpacingSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [](int v) {
+        QSettings().setValue("general/message_spacing", v);
+    });
+    spacingForm->addRow(tr("Extra message spacing"), messageSpacingSpin);
+    layout->addSpacing(8);
+    layout->addLayout(spacingForm);
+
+    auto *genNote = new QLabel(tr("Message spacing applies after restarting acheron."), page);
+    genNote->setWordWrap(true);
+    genNote->setStyleSheet("color: palette(mid);");
+    layout->addWidget(genNote);
+
     layout->addStretch();
     pages->addWidget(page);
 }
@@ -97,9 +115,34 @@ void SettingsWindow::buildDiscordPage()
         TypingIndicator::setShowTyping(checked);
     });
 
+    // Sizing controls (applied on restart)
+    auto *sizeForm = new QFormLayout;
+    sizeForm->setFieldGrowthPolicy(QFormLayout::FieldsStayAtSizeHint);
+
+    avatarSizeSpin = new QSpinBox(page);
+    avatarSizeSpin->setRange(16, 128);
+    avatarSizeSpin->setSuffix(tr(" px"));
+    avatarSizeSpin->setValue(QSettings().value("discord/avatar_size", 32).toInt());
+    connect(avatarSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [](int v) {
+        QSettings().setValue("discord/avatar_size", v);
+    });
+    sizeForm->addRow(tr("Chat avatar size"), avatarSizeSpin);
+
+    emojiSizeSpin = new QSpinBox(page);
+    emojiSizeSpin->setRange(12, 64);
+    emojiSizeSpin->setSuffix(tr(" px"));
+    emojiSizeSpin->setValue(QSettings().value("discord/emoji_size", 22).toInt());
+    connect(emojiSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [](int v) {
+        QSettings().setValue("discord/emoji_size", v);
+    });
+    sizeForm->addRow(tr("Chat emoji size"), emojiSizeSpin);
+
+    layout->addSpacing(8);
+    layout->addLayout(sizeForm);
+
     auto *note = new QLabel(
-            tr("Nickname and image changes apply to newly displayed messages; switch channels "
-               "or restart to refresh existing ones."),
+            tr("Nickname changes apply to newly displayed messages (switch channels to refresh). "
+               "Avatar and emoji size changes apply after restarting acheron."),
             page);
     note->setWordWrap(true);
     note->setStyleSheet("color: palette(mid);");
