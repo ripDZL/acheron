@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <atomic>
 
 #include <opus.h>
 
@@ -56,6 +57,8 @@ public slots:
     void setInputGain(float gain);
     void setOutputVolume(float volume);
     void setVadThreshold(float threshold);
+    void setPttMode(bool enabled);
+    void setPttActive(bool active);
 
     void setOpusApplication(int application);
     void setOpusBitrate(int bitrate);
@@ -91,6 +94,8 @@ private:
     bool deafened = false;
     bool isSpeaking = false;
     float vadThreshold = 100.0f;
+    bool pttMode = false;
+    std::atomic<bool> pttActive{false};
     int vadHoldoffFrames = 25;
     int vadHoldoffCounter = 0;
 
