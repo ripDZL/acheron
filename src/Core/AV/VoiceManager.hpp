@@ -56,6 +56,8 @@ public:
     void setOutputVolume(float volume);
     void setUserVolume(Snowflake userId, float volume);
     void setVadThreshold(float threshold);
+    void setPttMode(bool enabled);
+    void setPttActive(bool active);
 
     void setOpusApplication(int application);
     void setOpusBitrate(int bitrate);
