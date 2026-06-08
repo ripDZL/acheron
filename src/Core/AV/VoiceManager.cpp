@@ -241,16 +241,19 @@ void VoiceManager::setVadThreshold(float threshold)
 void VoiceManager::setPttMode(bool enabled)
 {
     cachedPttMode = enabled;
+    qCInfo(LogVoice) << "VoiceManager::setPttMode ->" << enabled
+                     << "pipeline=" << (audioPipeline ? "live" : "null");
     if (audioPipeline)
         QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, enabled]() { p->setPttMode(enabled); });
 }
 
 void VoiceManager::setPttActive(bool active)
 {
-    // Time-critical: use BlockingQueuedConnection so key-release cuts audio immediately
     if (audioPipeline)
         QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, active]() { p->setPttActive(active); },
                                   Qt::QueuedConnection);
+    else
+        qCWarning(LogVoice) << "VoiceManager::setPttActive ignored - pipeline null";
 }
 
 void VoiceManager::setOpusApplication(int application)

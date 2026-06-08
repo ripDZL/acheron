@@ -182,6 +182,7 @@ void AudioPipeline::setVadThreshold(float threshold)
 void AudioPipeline::setPttMode(bool enabled)
 {
     pttMode = enabled;
+    qCInfo(LogVoice) << "AudioPipeline::setPttMode ->" << enabled;
     // If switching away from PTT while key is held, release gracefully
     if (!enabled && pttActive.load()) {
         pttActive.store(false, std::memory_order_relaxed);
@@ -191,6 +192,7 @@ void AudioPipeline::setPttMode(bool enabled)
 void AudioPipeline::setPttActive(bool active)
 {
     pttActive.store(active, std::memory_order_relaxed);
+    qCInfo(LogVoice) << "AudioPipeline::setPttActive ->" << active;
 }
 
 void AudioPipeline::initializeEncoder()

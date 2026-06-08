@@ -498,6 +498,8 @@ void VoiceWindow::setupUi()
         pttKeyEdit->setEnabled(on);
         pttBtn->setEnabled(on);
         pttUnbindBtn->setEnabled(on && pttKey != 0);
+        qCInfo(LogVoice) << "VoiceWindow: PTT toggled ->" << on
+                         << "voiceManager=" << (voiceManager ? "set" : "null");
         if (voiceManager)
             voiceManager->setPttMode(on);
         QSettings s;
@@ -1148,10 +1150,12 @@ static LRESULT CALLBACK pttKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
             bool keyUp   = (wParam == WM_KEYUP   || wParam == WM_SYSKEYUP);
             if (keyDown && !s_pttDown) {
                 s_pttDown = true;
+                qCInfo(LogVoice) << "PTT hook: key DOWN (vk" << s_pttVk << ")";
                 auto *vm = s_pttWindow->currentVoiceManager();
                 if (vm) vm->setPttActive(true);
             } else if (keyUp && s_pttDown) {
                 s_pttDown = false;
+                qCInfo(LogVoice) << "PTT hook: key UP (vk" << s_pttVk << ")";
                 auto *vm = s_pttWindow->currentVoiceManager();
                 if (vm) vm->setPttActive(false);
             }
