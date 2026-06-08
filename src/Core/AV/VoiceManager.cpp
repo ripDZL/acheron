@@ -233,12 +233,14 @@ void VoiceManager::setUserVolume(Snowflake userId, float volume)
 
 void VoiceManager::setVadThreshold(float threshold)
 {
+    cachedVadThreshold = threshold;
     if (audioPipeline)
         QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, threshold]() { p->setVadThreshold(threshold); });
 }
 
 void VoiceManager::setPttMode(bool enabled)
 {
+    cachedPttMode = enabled;
     if (audioPipeline)
         QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, enabled]() { p->setPttMode(enabled); });
 }
@@ -639,14 +641,19 @@ void VoiceManager::onVoiceClientConnected()
     int signalType = cachedOpusSignalType;
     bool fec = cachedOpusFec;
     int plp = cachedOpusPacketLossPercent;
+    float vadThreshold = cachedVadThreshold;
+    bool pttMode = cachedPttMode;
     QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, backend, capturing, inputId, outputId,
-                                              application, bitrate, complexity, signalType, fec, plp]() {
+                                              application, bitrate, complexity, signalType, fec, plp,
+                                              vadThreshold, pttMode]() {
         p->setOpusApplication(application);
         p->setOpusBitrate(bitrate);
         p->setOpusComplexity(complexity);
         p->setOpusSignalType(signalType);
         p->setOpusFec(fec);
         p->setOpusPacketLossPercent(plp);
+        p->setVadThreshold(vadThreshold);
+        p->setPttMode(pttMode);
         p->start(backend, capturing);
         if (!inputId.isEmpty())
             p->setInputDevice(inputId);

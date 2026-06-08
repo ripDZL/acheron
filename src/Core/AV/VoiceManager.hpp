@@ -152,6 +152,8 @@ private:
     int cachedOpusSignalType = OPUS_SIGNAL_VOICE;
     bool cachedOpusFec = true;
     int cachedOpusPacketLossPercent = 0;
+    float cachedVadThreshold = 100.0f;
+    bool cachedPttMode = false;
     QList<AudioDeviceInfo> cachedInputDevices;
     QList<AudioDeviceInfo> cachedOutputDevices;
 

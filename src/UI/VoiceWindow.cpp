@@ -460,7 +460,8 @@ void VoiceWindow::setupUi()
     pttKeyEdit->setToolTip(tr("Click here then press the key you want to use for Push to Talk"));
     pttKeyEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     pttUnbindBtn = new QPushButton(tr("Unbind"), this);
-    pttUnbindBtn->setFixedWidth(60);
+    pttUnbindBtn->setMinimumWidth(72);
+    pttUnbindBtn->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     pttUnbindBtn->setToolTip(tr("Clear the PTT key binding"));
     pttKeyRow->addWidget(pttKeyLabel);
     pttKeyRow->addWidget(pttKeyEdit, 1);
