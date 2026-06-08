@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QCheckBox>
+#include <QKeySequenceEdit>
 #include <QLabel>
 #include <QSlider>
 #include <QComboBox>
@@ -121,6 +122,7 @@ public:
     using AvatarResolver = std::function<QUrl(Core::Snowflake)>;
 
     explicit VoiceWindow(QWidget *parent = nullptr);
+    ~VoiceWindow() override;
 
     void setVoiceManager(Core::AV::VoiceManager *manager);
     void setNameResolver(NameResolver resolver);
@@ -138,6 +140,9 @@ private:
     void loadCodecSettings();
     void applyCodecSettingsToManager();
     void installResetOnDoubleClick(QWidget *widget, const QVariant &defaultValue);
+
+    void installPttHook();
+    Core::AV::VoiceManager *currentVoiceManager() const;
 
     void onParticipantJoined(Core::Snowflake userId);
     void onParticipantLeft(Core::Snowflake userId);
@@ -173,6 +178,11 @@ private:
     QLabel *inputGainValue;
     QLabel *outputVolumeValue;
     QLabel *vadThresholdValue;
+
+    QCheckBox *pttModeCheckbox = nullptr;
+    QPushButton *pttBtn = nullptr;
+    QKeySequenceEdit *pttKeyEdit = nullptr;
+    int pttKey = Qt::Key_CapsLock; // default PTT key
 
     QToolButton *advancedToggle = nullptr;
     QWidget *advancedContainer = nullptr;
