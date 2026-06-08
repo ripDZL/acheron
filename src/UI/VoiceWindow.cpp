@@ -2,6 +2,7 @@
 
 #include "Core/AV/VoiceManager.hpp"
 #include "Core/ImageManager.hpp"
+#include "Core/Logging.hpp"
 
 #include <QContextMenuEvent>
 #include <QCoreApplication>
@@ -16,6 +17,11 @@
 #include <QPainterPath>
 #include <QSettings>
 #include <QVBoxLayout>
+
+// Forward declaration for Windows PTT hook cleanup
+#ifdef _WIN32
+static void uninstallHook();
+#endif
 
 #include <opus.h>
 #include <QHBoxLayout>
@@ -266,6 +272,13 @@ VoiceWindow::VoiceWindow(QWidget *parent)
     setupUi();
 }
 
+VoiceWindow::~VoiceWindow()
+{
+#ifdef _WIN32
+    uninstallHook();
+#endif
+}
+
 void VoiceWindow::setupUi()
 {
     setMinimumWidth(280);
@@ -410,6 +423,78 @@ void VoiceWindow::setupUi()
         if (voiceManager)
             voiceManager->setVadThreshold(static_cast<float>(value));
     });
+
+    // ---- Push-to-Talk ----
+    auto *pttSep = new QFrame(this);
+    pttSep->setFrameShape(QFrame::HLine);
+    pttSep->setStyleSheet("QFrame { color: palette(mid); }");
+    layout->addWidget(pttSep);
+
+    pttModeCheckbox = new QCheckBox(tr("Push to Talk"), this);
+    pttModeCheckbox->setStyleSheet("QCheckBox { font-size: 11px; }");
+    layout->addWidget(pttModeCheckbox);
+
+    auto *pttRow = new QHBoxLayout;
+    pttRow->setSpacing(4);
+    auto *pttKeyLabel = new QLabel(tr("PTT Key:"), this);
+    pttKeyLabel->setFixedWidth(60);
+    pttKeyEdit = new QKeySequenceEdit(this);
+    pttKeyEdit->setKeySequence(QKeySequence(pttKey));
+    pttKeyEdit->setMaximumSequenceLength(1);
+    pttKeyEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    pttRow->addWidget(pttKeyLabel);
+    pttRow->addWidget(pttKeyEdit, 1);
+    layout->addLayout(pttRow);
+
+    pttBtn = new QPushButton(tr("Hold to Talk"), this);
+    pttBtn->setStyleSheet(
+            "QPushButton { background-color: palette(button); border: 2px solid palette(mid);"
+            "  border-radius: 4px; padding: 6px; font-size: 12px; }"
+            "QPushButton:pressed { background-color: #43b581; border-color: #43b581; color: #fff; }");
+    layout->addWidget(pttBtn);
+
+    // Wire PTT mode toggle
+    connect(pttModeCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
+        pttKeyEdit->setEnabled(checked);
+        pttBtn->setEnabled(checked);
+        if (voiceManager)
+            voiceManager->setPttMode(checked);
+        QSettings s;
+        s.setValue("voice/ptt_mode", checked);
+    });
+
+    // PTT on-screen button (hold behaviour)
+    connect(pttBtn, &QPushButton::pressed, this, [this]() {
+        if (voiceManager)
+            voiceManager->setPttActive(true);
+    });
+    connect(pttBtn, &QPushButton::released, this, [this]() {
+        if (voiceManager)
+            voiceManager->setPttActive(false);
+    });
+
+    // Save PTT key when changed
+    connect(pttKeyEdit, &QKeySequenceEdit::keySequenceChanged, this, [this](const QKeySequence &seq) {
+        if (seq.isEmpty())
+            return;
+        pttKey = seq[0].key();
+        QSettings s;
+        s.setValue("voice/ptt_key", pttKey);
+        installPttHook();
+    });
+
+    // Restore saved settings
+    {
+        QSettings s;
+        bool savedPtt = s.value("voice/ptt_mode", false).toBool();
+        pttKey = s.value("voice/ptt_key", Qt::Key_CapsLock).toInt();
+        pttKeyEdit->setKeySequence(QKeySequence(pttKey));
+        pttModeCheckbox->setChecked(savedPtt);
+        pttKeyEdit->setEnabled(savedPtt);
+        pttBtn->setEnabled(savedPtt);
+    }
+
+    installPttHook();
 
     connect(inputDeviceCombo, &QComboBox::activated, this, [this](int index) {
         if (!voiceManager)
@@ -653,6 +738,12 @@ void VoiceWindow::setVoiceManager(Core::AV::VoiceManager *manager)
 
     applyCodecSettingsToManager();
     refreshDevices();
+
+    // Push current PTT state to newly assigned manager
+    if (pttModeCheckbox->isChecked()) {
+        voiceManager->setPttMode(true);
+        voiceManager->setPttActive(false); // ensure mic is closed on attach
+    }
 }
 
 void VoiceWindow::setNameResolver(NameResolver resolver)
@@ -958,6 +1049,108 @@ void VoiceWindow::requestAvatar(Core::Snowflake userId, VoiceUserWidget *widget)
 
     if (!imageManager->isCached(url, AVATAR_REQUEST_SIZE))
         pendingAvatars.insert(url, userId);
+}
+
+// ---------------------------------------------------------------------------
+// Push-to-Talk global key hook
+// ---------------------------------------------------------------------------
+
+#ifdef _WIN32
+#include <windows.h>
+
+static HHOOK   s_kbHook       = nullptr;
+static int     s_pttVk        = 0;
+static bool    s_pttDown      = false;
+static VoiceWindow *s_pttWindow = nullptr;
+
+static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode == HC_ACTION && s_pttWindow && s_pttVk != 0) {
+        auto *kb = reinterpret_cast<KBDLLHOOKSTRUCT *>(lParam);
+        if (static_cast<int>(kb->vkCode) == s_pttVk) {
+            bool keyDown = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
+            bool keyUp   = (wParam == WM_KEYUP   || wParam == WM_SYSKEYUP);
+            if (keyDown && !s_pttDown) {
+                s_pttDown = true;
+                Core::AV::VoiceManager *vm = s_pttWindow->currentVoiceManager();
+                if (vm) vm->setPttActive(true);
+            } else if (keyUp && s_pttDown) {
+                s_pttDown = false;
+                Core::AV::VoiceManager *vm = s_pttWindow->currentVoiceManager();
+                if (vm) vm->setPttActive(false);
+            }
+        }
+    }
+    return CallNextHookEx(s_kbHook, nCode, wParam, lParam);
+}
+
+static void uninstallHook()
+{
+    if (s_kbHook) {
+        UnhookWindowsHookEx(s_kbHook);
+        s_kbHook = nullptr;
+    }
+    s_pttWindow = nullptr;
+    s_pttVk = 0;
+    s_pttDown = false;
+}
+
+static int qtKeyToVk(int qtKey)
+{
+    // Map common Qt keys to Win32 VK codes
+    if (qtKey >= Qt::Key_A && qtKey <= Qt::Key_Z)
+        return qtKey; // Qt A-Z == VK_A-Z (0x41-0x5A)
+    if (qtKey >= Qt::Key_F1 && qtKey <= Qt::Key_F24)
+        return VK_F1 + (qtKey - Qt::Key_F1);
+    switch (qtKey) {
+        case Qt::Key_CapsLock:    return VK_CAPITAL;
+        case Qt::Key_Shift:       return VK_SHIFT;
+        case Qt::Key_Control:     return VK_CONTROL;
+        case Qt::Key_Alt:         return VK_MENU;
+        case Qt::Key_Space:       return VK_SPACE;
+        case Qt::Key_Tab:         return VK_TAB;
+        case Qt::Key_Backspace:   return VK_BACK;
+        case Qt::Key_Return:      return VK_RETURN;
+        case Qt::Key_Escape:      return VK_ESCAPE;
+        case Qt::Key_Insert:      return VK_INSERT;
+        case Qt::Key_Delete:      return VK_DELETE;
+        case Qt::Key_Home:        return VK_HOME;
+        case Qt::Key_End:         return VK_END;
+        case Qt::Key_PageUp:      return VK_PRIOR;
+        case Qt::Key_PageDown:    return VK_NEXT;
+        case Qt::Key_Left:        return VK_LEFT;
+        case Qt::Key_Right:       return VK_RIGHT;
+        case Qt::Key_Up:          return VK_UP;
+        case Qt::Key_Down:        return VK_DOWN;
+        case Qt::Key_0: case Qt::Key_1: case Qt::Key_2: case Qt::Key_3: case Qt::Key_4:
+        case Qt::Key_5: case Qt::Key_6: case Qt::Key_7: case Qt::Key_8: case Qt::Key_9:
+            return 0x30 + (qtKey - Qt::Key_0);
+        default: return 0;
+    }
+}
+#endif // _WIN32
+
+void VoiceWindow::installPttHook()
+{
+#ifdef _WIN32
+    uninstallHook();
+    if (!pttModeCheckbox || !pttModeCheckbox->isChecked())
+        return;
+    int vk = qtKeyToVk(pttKey);
+    if (vk == 0)
+        return;
+    s_pttVk = vk;
+    s_pttWindow = this;
+    s_kbHook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, nullptr, 0);
+    if (!s_kbHook) {
+        qCWarning(LogVoice) << "Failed to install low-level keyboard hook for PTT";
+    }
+#endif
+}
+
+Core::AV::VoiceManager *VoiceWindow::currentVoiceManager() const
+{
+    return voiceManager;
 }
 
 } // namespace UI
