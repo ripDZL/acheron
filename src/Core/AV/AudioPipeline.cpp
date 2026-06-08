@@ -179,6 +179,20 @@ void AudioPipeline::setVadThreshold(float threshold)
     vadThreshold = threshold;
 }
 
+void AudioPipeline::setPttMode(bool enabled)
+{
+    pttMode = enabled;
+    // If switching away from PTT while key is held, release gracefully
+    if (!enabled && pttActive.load()) {
+        pttActive.store(false, std::memory_order_relaxed);
+    }
+}
+
+void AudioPipeline::setPttActive(bool active)
+{
+    pttActive.store(active, std::memory_order_relaxed);
+}
+
 void AudioPipeline::initializeEncoder()
 {
     encoder = std::make_unique<OpusEncoder>();
@@ -250,8 +264,19 @@ void AudioPipeline::onAudioCaptured(const QByteArray &pcmData)
     if (!encoder)
         return;
 
-    float rms = 0.0f;
-    bool voiceDetected = detectVoiceActivity(pcmData, rms);
+    // Always compute RMS so the input volume meter stays active in both modes
+    const auto *samples = reinterpret_cast<const int16_t *>(pcmData.constData());
+    int sampleCount = pcmData.size() / static_cast<int>(sizeof(int16_t));
+    float rms = (sampleCount > 0) ? computeRms(samples, sampleCount) : 0.0f;
+
+    bool voiceDetected;
+    if (pttMode) {
+        // PTT: open mic only while the key is held
+        voiceDetected = pttActive.load(std::memory_order_relaxed);
+    } else {
+        // Normal VAD: threshold gate
+        voiceDetected = (rms > vadThreshold);
+    }
 
     if (rmsThrottleTimer.elapsed() >= RMS_EMIT_INTERVAL_MS) {
         emit audioLevelChanged(rms);
@@ -259,7 +284,7 @@ void AudioPipeline::onAudioCaptured(const QByteArray &pcmData)
     }
 
     if (voiceDetected) {
-        vadHoldoffCounter = vadHoldoffFrames;
+        vadHoldoffCounter = pttMode ? 0 : vadHoldoffFrames; // no artificial holdoff in PTT
         if (!isSpeaking) {
             isSpeaking = true;
             emit speakingChanged(true);
