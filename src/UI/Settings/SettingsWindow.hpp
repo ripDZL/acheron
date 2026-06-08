@@ -29,6 +29,9 @@ private:
     QSpinBox *messageSpacingSpin = nullptr;
     QCheckBox *invertWheelCheckbox = nullptr;
     QDoubleSpinBox *scrollSpeedSpin = nullptr;
+    QCheckBox *showCloseButtonCheckbox = nullptr;
+    QCheckBox *extraActiveHighlightCheckbox = nullptr;
+    QCheckBox *avoidRedundantTabsCheckbox = nullptr;
 
     // discord
     QCheckBox *showNicknamesCheckbox = nullptr;

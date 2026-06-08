@@ -6,9 +6,45 @@
 #include <QMouseEvent>
 #include <QFontMetrics>
 #include <QApplication>
+#include <QSettings>
+#include <atomic>
 
 namespace Acheron {
 namespace UI {
+
+namespace {
+std::atomic<int> g_showClose{-1};
+std::atomic<int> g_extraHighlight{-1};
+std::atomic<int> g_avoidRedundant{-1};
+int loadFlag(std::atomic<int> &cache, const char *key, bool def)
+{
+    int v = cache.load(std::memory_order_relaxed);
+    if (v < 0) {
+        v = QSettings().value(key, def).toBool() ? 1 : 0;
+        cache.store(v, std::memory_order_relaxed);
+    }
+    return v;
+}
+} // namespace
+
+bool TabBar::showCloseButton() { return loadFlag(g_showClose, "tabs/show_close_button", true) == 1; }
+void TabBar::setShowCloseButton(bool on)
+{
+    g_showClose.store(on ? 1 : 0, std::memory_order_relaxed);
+    QSettings().setValue("tabs/show_close_button", on);
+}
+bool TabBar::extraActiveHighlight() { return loadFlag(g_extraHighlight, "tabs/extra_active_highlight", false) == 1; }
+void TabBar::setExtraActiveHighlight(bool on)
+{
+    g_extraHighlight.store(on ? 1 : 0, std::memory_order_relaxed);
+    QSettings().setValue("tabs/extra_active_highlight", on);
+}
+bool TabBar::avoidRedundantTabs() { return loadFlag(g_avoidRedundant, "tabs/avoid_redundant", true) == 1; }
+void TabBar::setAvoidRedundantTabs(bool on)
+{
+    g_avoidRedundant.store(on ? 1 : 0, std::memory_order_relaxed);
+    QSettings().setValue("tabs/avoid_redundant", on);
+}
 
 TabBar::TabBar(Core::ImageManager *imageManager, QWidget *parent)
     : QWidget(parent), imageManager(imageManager)
@@ -74,6 +110,20 @@ void TabBar::updateCurrentTab(const TabEntry &entry)
 
 void TabBar::openNewTab(const TabEntry &entry)
 {
+    // If this channel is already open in a tab, switch to it instead of
+    // creating a duplicate.
+    if (avoidRedundantTabs()) {
+        for (int i = 0; i < tabs.size(); ++i) {
+            if (tabs[i].current().channelId == entry.channelId) {
+                currentTabIndex = i;
+                updateVisibility();
+                update();
+                emit tabChanged(tabs[i].current());
+                return;
+            }
+        }
+    }
+
     Tab newTab;
     newTab.history.append(entry);
     newTab.historyIndex = 0;
@@ -156,7 +206,7 @@ QList<TabBar::TabRect> TabBar::computeTabRects() const
             tabW += badgeW + 4;
         }
 
-        if (tabs.size() > 1)
+        if (tabs.size() > 1 && showCloseButton())
             tabW += CloseButtonSize + 4;
 
         tabW = qBound(TabMinWidth, tabW, TabMaxWidth);
@@ -164,7 +214,7 @@ QList<TabBar::TabRect> TabBar::computeTabRects() const
         QRect tabRect(x, 0, tabW, TabHeight);
 
         QRect closeRect;
-        if (tabs.size() > 1) {
+        if (tabs.size() > 1 && showCloseButton()) {
             int closeX = x + tabW - TabPadding - CloseButtonSize;
             int closeY = (TabHeight - CloseButtonSize) / 2;
             closeRect = QRect(closeX, closeY, CloseButtonSize, CloseButtonSize);
@@ -252,9 +302,13 @@ void TabBar::paintEvent(QPaintEvent *)
         bool isHovered = (i == hoveredTab);
 
         QColor tabBg;
-        if (isActive)
+        if (isActive) {
             tabBg = altBase;
-        else if (isHovered)
+            if (extraActiveHighlight())
+                tabBg = QColor((altBase.red() * 2 + highlight.red()) / 3,
+                               (altBase.green() * 2 + highlight.green()) / 3,
+                               (altBase.blue() * 2 + highlight.blue()) / 3);
+        } else if (isHovered)
             tabBg = QColor((windowBg.red() + altBase.red()) / 2,
                            (windowBg.green() + altBase.green()) / 2,
                            (windowBg.blue() + altBase.blue()) / 2);
@@ -371,7 +425,7 @@ void TabBar::paintEvent(QPaintEvent *)
             p.drawEllipse(dotX, dotY, dotSize, dotSize);
         }
 
-        if (tabs.size() > 1 && (isActive || isHovered)) {
+        if (tabs.size() > 1 && showCloseButton() && (isActive || isHovered)) {
             bool closeHovered = (i == hoveredClose);
             QRect cr = tr.closeBtn;
 
@@ -405,7 +459,7 @@ void TabBar::mousePressEvent(QMouseEvent *event)
         int idx = tabAtPos(event->pos());
 
         // check close button first
-        if (idx >= 0 && tabs.size() > 1 && rects[idx].closeBtn.contains(event->pos())) {
+        if (idx >= 0 && tabs.size() > 1 && showCloseButton() && rects[idx].closeBtn.contains(event->pos())) {
             closeTab(idx);
             return;
         }

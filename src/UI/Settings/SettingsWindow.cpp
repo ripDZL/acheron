@@ -3,6 +3,7 @@
 #include "AppearancePage.hpp"
 #include "UI/TypingIndicator.hpp"
 #include "UI/Chat/ChatView.hpp"
+#include "UI/TabBar/TabBar.hpp"
 #include "Core/ImageManager.hpp"
 #include "Core/UserManager.hpp"
 
@@ -113,6 +114,40 @@ void SettingsWindow::buildGeneralPage()
     scrollForm->addRow(tr("Chat scroll speed (wheel)"), scrollSpeedSpin);
     layout->addSpacing(4);
     layout->addLayout(scrollForm);
+
+    // ── Tabs ─────────────────────────────────────────────────────────────────
+    auto *tabsLabel = new QLabel(tr("Tabs"), page);
+    QFont tbf = tabsLabel->font();
+    tbf.setBold(true);
+    tabsLabel->setFont(tbf);
+    layout->addSpacing(10);
+    layout->addWidget(tabsLabel);
+
+    showCloseButtonCheckbox = new QCheckBox(tr("Show close button on tabs"), page);
+    layout->addWidget(showCloseButtonCheckbox);
+    connect(showCloseButtonCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        TabBar::setShowCloseButton(checked);
+    });
+
+    extraActiveHighlightCheckbox = new QCheckBox(tr("Extra highlighting on the active tab"), page);
+    layout->addWidget(extraActiveHighlightCheckbox);
+    connect(extraActiveHighlightCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        TabBar::setExtraActiveHighlight(checked);
+    });
+
+    avoidRedundantTabsCheckbox = new QCheckBox(tr("Avoid creating redundant tabs"), page);
+    avoidRedundantTabsCheckbox->setToolTip(
+            tr("Opening a channel that's already in a tab switches to it instead of duplicating."));
+    layout->addWidget(avoidRedundantTabsCheckbox);
+    connect(avoidRedundantTabsCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        TabBar::setAvoidRedundantTabs(checked);
+    });
+
+    auto *tabsNote = new QLabel(tr("Tab appearance changes take effect on the next tab interaction."), page);
+    tabsNote->setWordWrap(true);
+    tabsNote->setStyleSheet("color: palette(mid);");
+    layout->addSpacing(4);
+    layout->addWidget(tabsNote);
 
     layout->addStretch();
     pages->addWidget(page);
@@ -247,6 +282,9 @@ void SettingsWindow::loadSettings()
     inMemoryCacheCheckbox->setChecked(settings.value("general/in_memory_cache", false).toBool());
     downloadImagesCheckbox->setChecked(Core::ImageManager::networkImagesEnabled());
     invertWheelCheckbox->setChecked(ChatView::wheelInverted());
+    showCloseButtonCheckbox->setChecked(TabBar::showCloseButton());
+    extraActiveHighlightCheckbox->setChecked(TabBar::extraActiveHighlight());
+    avoidRedundantTabsCheckbox->setChecked(TabBar::avoidRedundantTabs());
     showNicknamesCheckbox->setChecked(Core::UserManager::showNicknames());
     showTypingCheckbox->setChecked(TypingIndicator::showTyping());
 

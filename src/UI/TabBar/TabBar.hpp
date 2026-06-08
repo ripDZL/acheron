@@ -57,6 +57,14 @@ public:
 
     void updateChannelReadState(Core::Snowflake channelId, bool unread, int mentionCount);
 
+    // Tab behavior/appearance preferences (live, backed by QSettings)
+    static bool showCloseButton();
+    static void setShowCloseButton(bool on);
+    static bool extraActiveHighlight();
+    static void setExtraActiveHighlight(bool on);
+    static bool avoidRedundantTabs();
+    static void setAvoidRedundantTabs(bool on);
+
 signals:
     void tabChanged(const TabEntry &entry);
 
