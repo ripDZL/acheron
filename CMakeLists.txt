@@ -114,6 +114,7 @@ set(PROJECT_SOURCES
     src/UI/ImageViewer.cpp
     src/UI/Accounts/AccountsWindow.cpp
     src/UI/Settings/SettingsWindow.cpp
+    src/UI/Theme.cpp
     src/UI/Accounts/AccountsModel.cpp
     src/UI/ChannelList/ChannelDelegate.cpp
     src/UI/ChannelList/ChannelTreeModel.cpp

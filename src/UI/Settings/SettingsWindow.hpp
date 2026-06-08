@@ -2,6 +2,8 @@
 
 #include <QtWidgets>
 
+#include "UI/Theme.hpp"
+
 namespace Acheron {
 namespace UI {
 
@@ -14,12 +16,28 @@ public:
 private:
     void setupUi();
     void loadSettings();
+    void buildAppearancePage();
+    QPushButton *makeColorSwatch(const QColor &initial);
+    void setSwatchColor(QPushButton *btn, const QColor &c);
+    void applyAndSaveTheme();
 
     QListWidget *categoryList;
     QStackedWidget *pages;
 
     // general
     QCheckBox *inMemoryCacheCheckbox;
+
+    // appearance
+    ThemeColors currentTheme;
+    QPushButton *bgSwatch = nullptr;
+    QPushButton *textSwatch = nullptr;
+    QPushButton *baseSwatch = nullptr;
+    QPushButton *accentSwatch = nullptr;
+    QPushButton *buttonSwatch = nullptr;
+    QPushButton *borderSwatch = nullptr;
+    QFontComboBox *fontCombo = nullptr;
+    QSpinBox *fontSizeSpin = nullptr;
+    QCheckBox *useCustomFont = nullptr;
 };
 
 } // namespace UI
