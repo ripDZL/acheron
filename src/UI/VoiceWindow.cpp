@@ -17,16 +17,33 @@
 #include <QPainterPath>
 #include <QSettings>
 #include <QVBoxLayout>
-
-// Forward declaration for Windows PTT hook cleanup
-#ifdef _WIN32
-static void uninstallHook();
-#endif
-
-#include <opus.h>
 #include <QHBoxLayout>
 #include <QLinearGradient>
 #include <QFrame>
+#include <opus.h>
+
+// Windows PTT global hook - must be included and defined at global scope
+// before the Acheron namespace opens, to avoid MSVC errors with mid-file includes
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
+// Forward-declare the VoiceWindow so the hook callback can call into it
+namespace Acheron { namespace UI { class VoiceWindow; } }
+
+static HHOOK    s_kbHook    = nullptr;
+static int      s_pttVk     = 0;
+static bool     s_pttDown   = false;
+static Acheron::UI::VoiceWindow *s_pttWindow = nullptr;
+
+// Resolved at link time via currentVoiceManager() accessor
+namespace Acheron { namespace Core { namespace AV { class VoiceManager; } } }
+
+static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
+static void uninstallHook();
+static int  qtKeyToVk(int qtKey);
+#endif // _WIN32
 
 namespace Acheron {
 namespace UI {
@@ -1051,18 +1068,15 @@ void VoiceWindow::requestAvatar(Core::Snowflake userId, VoiceUserWidget *widget)
         pendingAvatars.insert(url, userId);
 }
 
+} // namespace UI
+} // namespace Acheron
+
 // ---------------------------------------------------------------------------
-// Push-to-Talk global key hook
+// Push-to-Talk global key hook implementations
+// These must live at global scope - windows.h macros and statics declared above
 // ---------------------------------------------------------------------------
 
 #ifdef _WIN32
-#include <windows.h>
-
-static HHOOK   s_kbHook       = nullptr;
-static int     s_pttVk        = 0;
-static bool    s_pttDown      = false;
-static VoiceWindow *s_pttWindow = nullptr;
-
 static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode == HC_ACTION && s_pttWindow && s_pttVk != 0) {
@@ -1072,11 +1086,11 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lP
             bool keyUp   = (wParam == WM_KEYUP   || wParam == WM_SYSKEYUP);
             if (keyDown && !s_pttDown) {
                 s_pttDown = true;
-                Core::AV::VoiceManager *vm = s_pttWindow->currentVoiceManager();
+                auto *vm = s_pttWindow->currentVoiceManager();
                 if (vm) vm->setPttActive(true);
             } else if (keyUp && s_pttDown) {
                 s_pttDown = false;
-                Core::AV::VoiceManager *vm = s_pttWindow->currentVoiceManager();
+                auto *vm = s_pttWindow->currentVoiceManager();
                 if (vm) vm->setPttActive(false);
             }
         }
@@ -1097,31 +1111,30 @@ static void uninstallHook()
 
 static int qtKeyToVk(int qtKey)
 {
-    // Map common Qt keys to Win32 VK codes
     if (qtKey >= Qt::Key_A && qtKey <= Qt::Key_Z)
-        return qtKey; // Qt A-Z == VK_A-Z (0x41-0x5A)
+        return qtKey;
     if (qtKey >= Qt::Key_F1 && qtKey <= Qt::Key_F24)
         return VK_F1 + (qtKey - Qt::Key_F1);
     switch (qtKey) {
-        case Qt::Key_CapsLock:    return VK_CAPITAL;
-        case Qt::Key_Shift:       return VK_SHIFT;
-        case Qt::Key_Control:     return VK_CONTROL;
-        case Qt::Key_Alt:         return VK_MENU;
-        case Qt::Key_Space:       return VK_SPACE;
-        case Qt::Key_Tab:         return VK_TAB;
-        case Qt::Key_Backspace:   return VK_BACK;
-        case Qt::Key_Return:      return VK_RETURN;
-        case Qt::Key_Escape:      return VK_ESCAPE;
-        case Qt::Key_Insert:      return VK_INSERT;
-        case Qt::Key_Delete:      return VK_DELETE;
-        case Qt::Key_Home:        return VK_HOME;
-        case Qt::Key_End:         return VK_END;
-        case Qt::Key_PageUp:      return VK_PRIOR;
-        case Qt::Key_PageDown:    return VK_NEXT;
-        case Qt::Key_Left:        return VK_LEFT;
-        case Qt::Key_Right:       return VK_RIGHT;
-        case Qt::Key_Up:          return VK_UP;
-        case Qt::Key_Down:        return VK_DOWN;
+        case Qt::Key_CapsLock:  return VK_CAPITAL;
+        case Qt::Key_Shift:     return VK_SHIFT;
+        case Qt::Key_Control:   return VK_CONTROL;
+        case Qt::Key_Alt:       return VK_MENU;
+        case Qt::Key_Space:     return VK_SPACE;
+        case Qt::Key_Tab:       return VK_TAB;
+        case Qt::Key_Backspace: return VK_BACK;
+        case Qt::Key_Return:    return VK_RETURN;
+        case Qt::Key_Escape:    return VK_ESCAPE;
+        case Qt::Key_Insert:    return VK_INSERT;
+        case Qt::Key_Delete:    return VK_DELETE;
+        case Qt::Key_Home:      return VK_HOME;
+        case Qt::Key_End:       return VK_END;
+        case Qt::Key_PageUp:    return VK_PRIOR;
+        case Qt::Key_PageDown:  return VK_NEXT;
+        case Qt::Key_Left:      return VK_LEFT;
+        case Qt::Key_Right:     return VK_RIGHT;
+        case Qt::Key_Up:        return VK_UP;
+        case Qt::Key_Down:      return VK_DOWN;
         case Qt::Key_0: case Qt::Key_1: case Qt::Key_2: case Qt::Key_3: case Qt::Key_4:
         case Qt::Key_5: case Qt::Key_6: case Qt::Key_7: case Qt::Key_8: case Qt::Key_9:
             return 0x30 + (qtKey - Qt::Key_0);
@@ -1130,7 +1143,8 @@ static int qtKeyToVk(int qtKey)
 }
 #endif // _WIN32
 
-void VoiceWindow::installPttHook()
+// Member functions defined outside namespace using fully-qualified names
+void Acheron::UI::VoiceWindow::installPttHook()
 {
 #ifdef _WIN32
     uninstallHook();
@@ -1142,16 +1156,12 @@ void VoiceWindow::installPttHook()
     s_pttVk = vk;
     s_pttWindow = this;
     s_kbHook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, nullptr, 0);
-    if (!s_kbHook) {
-        qCWarning(LogVoice) << "Failed to install low-level keyboard hook for PTT";
-    }
+    if (!s_kbHook)
+        qCWarning(LogVoice) << "PTT: Failed to install low-level keyboard hook";
 #endif
 }
 
-Core::AV::VoiceManager *VoiceWindow::currentVoiceManager() const
+Acheron::Core::AV::VoiceManager *Acheron::UI::VoiceWindow::currentVoiceManager() const
 {
     return voiceManager;
 }
-
-} // namespace UI
-} // namespace Acheron
