@@ -189,18 +189,29 @@ void Theme::apply(const ThemeColors &c)
 {
     if (!qApp)
         return;
+
+    // Remember the application's original font the first time we apply, so we
+    // can restore it when the user turns custom fonts back off.
+    static QFont s_defaultFont;
+    static bool s_haveDefault = false;
+    if (!s_haveDefault) {
+        s_defaultFont = qApp->font();
+        s_haveDefault = true;
+    }
+
     qApp->setPalette(buildPalette(c));
     qApp->setStyleSheet(buildStyleSheet(c));
 
-    if (!c.fontFamily.isEmpty() || c.fontSize > 0) {
-        QFont f = qApp->font();
-        if (!c.fontFamily.isEmpty())
-            f.setFamily(c.fontFamily);
-        if (c.fontSize > 0)
-            f.setPointSize(c.fontSize);
+    if (!c.fontFamily.isEmpty()) {
+        QFont f(c.fontFamily);
+        f.setPointSize(c.fontSize > 0 ? c.fontSize : s_defaultFont.pointSize());
         qApp->setFont(f);
+    } else {
+        // No custom font: restore the original application font.
+        qApp->setFont(s_defaultFont);
     }
 }
 
 } // namespace UI
 } // namespace Acheron
+

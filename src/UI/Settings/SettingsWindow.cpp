@@ -3,6 +3,7 @@
 #include "UI/Theme.hpp"
 
 #include <QColorDialog>
+#include <QFontDatabase>
 #include <QSettings>
 
 namespace Acheron {
@@ -132,7 +133,13 @@ void SettingsWindow::buildAppearancePage()
     outer->addWidget(useCustomFont);
 
     auto *fontRow = new QHBoxLayout;
-    fontCombo = new QFontComboBox(page);
+    fontCombo = new QComboBox(page);
+    // Populate from the locally installed font families. Using a plain QComboBox
+    // (rather than QFontComboBox) renders every entry in the normal UI font, so
+    // tall/decorative fonts don't overlap or clip in the dropdown.
+    fontCombo->addItems(QFontDatabase::families());
+    fontCombo->setMaxVisibleItems(20);
+    fontCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     fontSizeSpin = new QSpinBox(page);
     fontSizeSpin->setRange(7, 28);
     fontSizeSpin->setSuffix(tr(" pt"));
@@ -144,8 +151,14 @@ void SettingsWindow::buildAppearancePage()
     useCustomFont->setChecked(hasCustomFont);
     fontCombo->setEnabled(hasCustomFont);
     fontSizeSpin->setEnabled(hasCustomFont);
-    if (hasCustomFont)
-        fontCombo->setCurrentFont(QFont(currentTheme.fontFamily));
+    {
+        // Select the saved family, or fall back to the current UI font family.
+        QString family = hasCustomFont ? currentTheme.fontFamily
+                                       : QApplication::font().family();
+        int idx = fontCombo->findText(family);
+        if (idx >= 0)
+            fontCombo->setCurrentIndex(idx);
+    }
     int defaultPt = QApplication::font().pointSize();
     if (defaultPt <= 0)
         defaultPt = 10;
@@ -153,7 +166,7 @@ void SettingsWindow::buildAppearancePage()
 
     auto applyFont = [this]() {
         if (useCustomFont->isChecked()) {
-            currentTheme.fontFamily = fontCombo->currentFont().family();
+            currentTheme.fontFamily = fontCombo->currentText();
             currentTheme.fontSize = fontSizeSpin->value();
         } else {
             currentTheme.fontFamily = QString();
@@ -166,7 +179,7 @@ void SettingsWindow::buildAppearancePage()
         fontSizeSpin->setEnabled(on);
         applyFont();
     });
-    connect(fontCombo, &QFontComboBox::currentFontChanged, this, [applyFont]() { applyFont(); });
+    connect(fontCombo, &QComboBox::currentTextChanged, this, [applyFont]() { applyFont(); });
     connect(fontSizeSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
             [applyFont]() { applyFont(); });
 
@@ -215,3 +228,4 @@ void SettingsWindow::loadSettings()
 
 } // namespace UI
 } // namespace Acheron
+

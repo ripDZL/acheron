@@ -35,10 +35,11 @@ private:
     QPushButton *accentSwatch = nullptr;
     QPushButton *buttonSwatch = nullptr;
     QPushButton *borderSwatch = nullptr;
-    QFontComboBox *fontCombo = nullptr;
+    QComboBox *fontCombo = nullptr;
     QSpinBox *fontSizeSpin = nullptr;
     QCheckBox *useCustomFont = nullptr;
 };
 
 } // namespace UI
 } // namespace Acheron
+
