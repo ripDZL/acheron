@@ -72,6 +72,7 @@ private:
 
 private:
     void setupUi();
+    void setupTrayIcon();
     void setupMenu();
 
     ChatView *chatView;
@@ -97,6 +98,7 @@ private:
 #endif
     AccountsWindow *accountsWindow = nullptr;
     SettingsWindow *settingsWindow = nullptr;
+    QSystemTrayIcon *trayIcon = nullptr;
 
 private slots:
     void openAccountsWindow();

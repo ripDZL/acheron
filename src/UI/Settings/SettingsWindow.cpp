@@ -149,6 +149,33 @@ void SettingsWindow::buildGeneralPage()
     layout->addSpacing(4);
     layout->addWidget(tabsNote);
 
+    // ── System Tray ──────────────────────────────────────────────────────────
+    auto *trayLabel = new QLabel(tr("System Tray"), page);
+    QFont trbf = trayLabel->font();
+    trbf.setBold(true);
+    trayLabel->setFont(trbf);
+    layout->addSpacing(10);
+    layout->addWidget(trayLabel);
+
+    showTrayIconCheckbox = new QCheckBox(tr("Show icon in system tray"), page);
+    layout->addWidget(showTrayIconCheckbox);
+    connect(showTrayIconCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        QSettings().setValue("tray/show_icon", checked);
+    });
+
+    closeToTrayCheckbox = new QCheckBox(tr("Keep Acheron running in the tray when the window is closed"), page);
+    layout->addWidget(closeToTrayCheckbox);
+    connect(closeToTrayCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        QSettings().setValue("tray/close_to_tray", checked);
+    });
+
+    auto *trayNote = new QLabel(
+            tr("Showing or hiding the tray icon takes effect after restarting acheron."), page);
+    trayNote->setWordWrap(true);
+    trayNote->setStyleSheet("color: palette(mid);");
+    layout->addSpacing(4);
+    layout->addWidget(trayNote);
+
     layout->addStretch();
     pages->addWidget(page);
 }
@@ -285,6 +312,8 @@ void SettingsWindow::loadSettings()
     showCloseButtonCheckbox->setChecked(TabBar::showCloseButton());
     extraActiveHighlightCheckbox->setChecked(TabBar::extraActiveHighlight());
     avoidRedundantTabsCheckbox->setChecked(TabBar::avoidRedundantTabs());
+    showTrayIconCheckbox->setChecked(settings.value("tray/show_icon", true).toBool());
+    closeToTrayCheckbox->setChecked(settings.value("tray/close_to_tray", true).toBool());
     showNicknamesCheckbox->setChecked(Core::UserManager::showNicknames());
     showTypingCheckbox->setChecked(TypingIndicator::showTyping());
 

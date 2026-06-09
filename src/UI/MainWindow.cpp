@@ -1,6 +1,10 @@
 #include "MainWindow.hpp"
 
 #include <QMessageBox>
+#include <QSystemTrayIcon>
+#include <QMenu>
+#include <QSettings>
+#include <QIcon>
 
 #include "Chat/ChatModel.hpp"
 #include "Chat/ChatDelegate.hpp"
@@ -72,6 +76,8 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
 
     setupUi();
     setupMenu();
+    setWindowIcon(QIcon(":/acheron.ico"));
+    setupTrayIcon();
 
     qApp->installEventFilter(this);
 
@@ -122,14 +128,58 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
     }
 }
 
+void MainWindow::setupTrayIcon()
+{
+    if (!QSystemTrayIcon::isSystemTrayAvailable())
+        return;
+    if (!QSettings().value("tray/show_icon", true).toBool())
+        return;
+
+    trayIcon = new QSystemTrayIcon(QIcon(":/acheron.ico"), this);
+    trayIcon->setToolTip(QStringLiteral("Acheron"));
+
+    auto *menu = new QMenu(this);
+    QAction *showAction = menu->addAction(tr("Show Acheron"));
+    connect(showAction, &QAction::triggered, this, [this]() {
+        showNormal();
+        raise();
+        activateWindow();
+    });
+    menu->addSeparator();
+    QAction *quitAction = menu->addAction(tr("Quit"));
+    connect(quitAction, &QAction::triggered, this, []() { qApp->quit(); });
+
+    trayIcon->setContextMenu(menu);
+
+    connect(trayIcon, &QSystemTrayIcon::activated, this,
+            [this](QSystemTrayIcon::ActivationReason reason) {
+                if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
+                    if (isVisible() && !isMinimized()) {
+                        hide();
+                    } else {
+                        showNormal();
+                        raise();
+                        activateWindow();
+                    }
+                }
+            });
+
+    trayIcon->show();
+}
+
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    hide();
-
-    // if (session)
-    //    session->shutdown();
+    // If the tray icon is active and "close to tray" is enabled, keep running
+    // in the background instead of quitting.
+    const bool closeToTray = QSettings().value("tray/close_to_tray", true).toBool();
+    if (closeToTray && trayIcon && trayIcon->isVisible()) {
+        hide();
+        event->ignore();
+        return;
+    }
 
     event->accept();
+    qApp->quit();
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *ev)
