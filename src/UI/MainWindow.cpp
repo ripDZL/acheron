@@ -83,6 +83,20 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
     if (QSettings().value("general/show_accounts_on_launch", false).toBool())
         QTimer::singleShot(0, this, &MainWindow::openAccountsWindow);
 
+    // Auto-connect a single account on launch, if one is configured.
+    {
+        const QString autoId = QSettings().value("accounts/autoconnect_id").toString();
+        bool ok = false;
+        const quint64 idv = autoId.toULongLong(&ok);
+        if (ok && idv != 0) {
+            const Core::Snowflake accId(idv);
+            QTimer::singleShot(0, this, [this, accId]() {
+                if (!session->hasActiveConnection())
+                    session->connectAccount(accId);
+            });
+        }
+    }
+
     qApp->installEventFilter(this);
 
     typingIndicator->setRoleColorResolver(
@@ -320,6 +334,8 @@ void MainWindow::onChannelSelectionChanged(const QModelIndex &current, const QMo
         if (serverNode && !serverNode->TEMP_iconHash.isEmpty())
             entry.iconUrl = Discord::Cdn::guildIcon(serverNode->id, serverNode->TEMP_iconHash, 64);
         tabBar->updateCurrentTab(entry);
+        if (centralStack)
+            centralStack->setCurrentIndex(0); // leave accounts view when a channel is opened
     }
 }
 
@@ -638,7 +654,16 @@ void MainWindow::setupUi()
 
     mainSplitter = new QSplitter(this);
     mainSplitter->addWidget(leftSideWidget);
-    mainSplitter->addWidget(rightSideWidget);
+
+    // The right side can show either the chat UI or the accounts panel, while
+    // the channel tree on the left stays visible (so selecting a channel
+    // returns to chat).
+    centralStack = new QStackedWidget(this);
+    centralStack->addWidget(rightSideWidget);   // page 0: chat
+    embeddedAccounts = new AccountsWindow(session, accountsModel, this);
+    centralStack->addWidget(embeddedAccounts);  // page 1: accounts
+    mainSplitter->addWidget(centralStack);
+
     mainSplitter->addWidget(memberListView);
 
     mainSplitter->setCollapsible(0, false);
@@ -1066,7 +1091,7 @@ void MainWindow::setupMenu()
     auto *menuBar = this->menuBar();
     QMenu *viewMenu = menuBar->addMenu(tr("&View"));
     auto *accountsAction = new QAction(tr("&Accounts"), this);
-    connect(accountsAction, &QAction::triggered, this, &MainWindow::openAccountsWindow);
+    connect(accountsAction, &QAction::triggered, this, &MainWindow::showAccountsPanel);
     viewMenu->addAction(accountsAction);
 
     auto *settingsAction = new QAction(tr("&Settings"), this);
@@ -1081,6 +1106,14 @@ void MainWindow::setupMenu()
         if (currentInstance)
             currentInstance->discord()->debugForceReconnect();
     });
+}
+
+void MainWindow::showAccountsPanel()
+{
+    if (centralStack && embeddedAccounts) {
+        centralStack->setCurrentWidget(embeddedAccounts);
+        memberListView->hide();
+    }
 }
 
 void MainWindow::openAccountsWindow()

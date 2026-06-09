@@ -73,6 +73,7 @@ private:
 private:
     void setupUi();
     void setupTrayIcon();
+    void showAccountsPanel();
     void setupMenu();
 
     ChatView *chatView;
@@ -99,6 +100,8 @@ private:
     AccountsWindow *accountsWindow = nullptr;
     SettingsWindow *settingsWindow = nullptr;
     QSystemTrayIcon *trayIcon = nullptr;
+    QStackedWidget *centralStack = nullptr;
+    AccountsWindow *embeddedAccounts = nullptr;
 
 private slots:
     void openAccountsWindow();

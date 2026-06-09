@@ -48,6 +48,8 @@ private:
     QPushButton *removeButton;
     QPushButton *connectButton;
     QPushButton *disconnectButton;
+    QCheckBox *autoConnectCheckbox = nullptr;
+    Core::Snowflake currentDetailAccountId;
 
     void setupUi();
     void updateDetails(const Acheron::Core::AccountInfo *info);

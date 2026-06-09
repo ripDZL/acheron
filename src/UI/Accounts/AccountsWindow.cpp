@@ -2,6 +2,7 @@
 
 #include <QMessageBox>
 #include <QRandomGenerator>
+#include <QSettings>
 
 #include "Core/Session.hpp"
 #include "Core/TokenStore.hpp"
@@ -98,6 +99,25 @@ void AccountsWindow::setupUi()
     form->addRow(tr("Username:"), detailUsername);
     form->addRow(tr("User ID:"), detailId);
     form->addRow(tr("Actions:"), actionBtnLayout);
+
+    autoConnectCheckbox = new QCheckBox(tr("Automatically connect this account on launch"),
+                                        detailsContainer);
+    autoConnectCheckbox->setToolTip(
+            tr("Only one account can auto-connect. Enabling this turns it off for any other account."));
+    form->addRow(QString(), autoConnectCheckbox);
+    connect(autoConnectCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
+        QSettings settings;
+        if (checked) {
+            // Single account only: store this one as THE auto-connect account.
+            settings.setValue("accounts/autoconnect_id",
+                              QString::number(static_cast<quint64>(currentDetailAccountId)));
+        } else {
+            // Clear only if this account was the auto-connect one.
+            const QString stored = settings.value("accounts/autoconnect_id").toString();
+            if (stored == QString::number(static_cast<quint64>(currentDetailAccountId)))
+                settings.remove("accounts/autoconnect_id");
+        }
+    });
 
     containerLayout->addLayout(form);
     containerLayout->addStretch();
@@ -324,6 +344,14 @@ void AccountsWindow::updateDetails(const AccountInfo *info)
 {
     if (!info)
         return;
+
+    currentDetailAccountId = info->id;
+    if (autoConnectCheckbox) {
+        QSignalBlocker block(autoConnectCheckbox);
+        const QString stored = QSettings().value("accounts/autoconnect_id").toString();
+        autoConnectCheckbox->setChecked(
+                stored == QString::number(static_cast<quint64>(info->id)));
+    }
 
     const QSize desiredSize(64, 64);
     QUrl TEMPORARY = Discord::Cdn::userAvatar(info->id, info->avatar, desiredSize.width());
