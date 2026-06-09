@@ -2,5 +2,7 @@
     <qresource prefix="/">
         <file>resources/placeholder.png</file>
         <file>acheron.ico</file>
+        <file>resources/ptt_press.wav</file>
+        <file>resources/ptt_release.wav</file>
     </qresource>
 </RCC>

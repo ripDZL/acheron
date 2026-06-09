@@ -148,7 +148,8 @@ public:
     Core::AV::VoiceManager *currentVoiceManager() const { return voiceManager; }
     // Visually press/release the Hold-to-Talk button to mirror key-held state.
     void reflectPttActive(bool active);
-
+    // Play a subtle click when PTT engages (active=true) / releases (false).
+    void playPttFeedbackSound(bool active);
 private:
     void onParticipantJoined(Core::Snowflake userId);
     void onParticipantLeft(Core::Snowflake userId);

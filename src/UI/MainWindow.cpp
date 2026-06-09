@@ -508,6 +508,18 @@ void MainWindow::setupPermanentConnections(Core::ClientInstance *instance)
                                                               instance->accountId());
             });
 #endif
+
+    // Flash the taskbar on an incoming DM (not our own message, and only when
+    // the window isn't focused).
+    connect(instance->discord(), &Discord::Client::messageCreated, this,
+            [this, instance](const Discord::Message &msg) {
+                if (msg.author->id == instance->accountId())
+                    return;
+                const bool isDm =
+                        !instance->discord()->getGuildIdForChannel(msg.channelId).isValid();
+                if (isDm && !isActiveWindow())
+                    QApplication::alert(this);
+            });
 }
 
 void MainWindow::setupUi()
