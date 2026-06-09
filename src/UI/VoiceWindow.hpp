@@ -146,6 +146,8 @@ private:
 public:
     // Accessed by global hook callback - do not call directly
     Core::AV::VoiceManager *currentVoiceManager() const { return voiceManager; }
+    // Visually press/release the Hold-to-Talk button to mirror key-held state.
+    void reflectPttActive(bool active);
 
 private:
     void onParticipantJoined(Core::Snowflake userId);

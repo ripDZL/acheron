@@ -110,12 +110,11 @@ void TabBar::updateCurrentTab(const TabEntry &entry)
 
 void TabBar::openNewTab(const TabEntry &entry)
 {
-    // If this channel is already open in a *different* tab, switch to it
-    // instead of creating a duplicate. The current tab is excluded so that
-    // explicitly opening the channel you're viewing in a new tab still works.
+    // If this channel is already open in any tab, switch to it instead of
+    // creating a duplicate.
     if (avoidRedundantTabs()) {
         for (int i = 0; i < tabs.size(); ++i) {
-            if (i != currentTabIndex && tabs[i].current().channelId == entry.channelId) {
+            if (tabs[i].current().channelId == entry.channelId) {
                 currentTabIndex = i;
                 updateVisibility();
                 update();

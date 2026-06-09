@@ -1133,7 +1133,17 @@ void Acheron::UI::VoiceWindow::removePttHook()
     // Make sure mic is closed when unbound
     if (voiceManager)
         voiceManager->setPttActive(false);
+    reflectPttActive(false);
 #endif
+}
+
+void Acheron::UI::VoiceWindow::reflectPttActive(bool active)
+{
+    // Mirror the key-held state on the on-screen button (same look as a manual
+    // press). The global keyboard hook runs on the GUI thread, so this is safe
+    // to call directly.
+    if (pttBtn)
+        pttBtn->setDown(active);
 }
 
 // ---------------------------------------------------------------------------
@@ -1153,11 +1163,13 @@ static LRESULT CALLBACK pttKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
                 qCDebug(LogVoice) << "PTT hook: key DOWN (vk" << s_pttVk << ")";
                 auto *vm = s_pttWindow->currentVoiceManager();
                 if (vm) vm->setPttActive(true);
+                s_pttWindow->reflectPttActive(true);
             } else if (keyUp && s_pttDown) {
                 s_pttDown = false;
                 qCDebug(LogVoice) << "PTT hook: key UP (vk" << s_pttVk << ")";
                 auto *vm = s_pttWindow->currentVoiceManager();
                 if (vm) vm->setPttActive(false);
+                s_pttWindow->reflectPttActive(false);
             }
         }
     }
