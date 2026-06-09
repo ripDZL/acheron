@@ -8,7 +8,6 @@
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
-#include <QFile>
 #include <QFontDatabase>
 #include <QFormLayout>
 #include <QMenu>
@@ -33,7 +32,6 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#include <mmsystem.h>
 
 namespace Acheron { namespace UI { class VoiceWindow; } }
 
@@ -535,16 +533,12 @@ void VoiceWindow::setupUi()
 
     // On-screen hold button
     connect(pttBtn, &QPushButton::pressed,  this, [this]() {
-        if (pttModeCheckbox->isChecked() && voiceManager) {
+        if (pttModeCheckbox->isChecked() && voiceManager)
             voiceManager->setPttActive(true);
-            playPttFeedbackSound(true);
-        }
     });
     connect(pttBtn, &QPushButton::released, this, [this]() {
-        if (voiceManager) {
+        if (voiceManager)
             voiceManager->setPttActive(false);
-            playPttFeedbackSound(false);
-        }
     });
 
     installPttHook();
@@ -1150,29 +1144,6 @@ void Acheron::UI::VoiceWindow::reflectPttActive(bool active)
     // to call directly.
     if (pttBtn)
         pttBtn->setDown(active);
-    playPttFeedbackSound(active);
-}
-
-void Acheron::UI::VoiceWindow::playPttFeedbackSound(bool active)
-{
-#ifdef _WIN32
-    static QByteArray pressData = []() {
-        QFile f(QStringLiteral(":/resources/ptt_press.wav"));
-        f.open(QIODevice::ReadOnly);
-        return f.readAll();
-    }();
-    static QByteArray releaseData = []() {
-        QFile f(QStringLiteral(":/resources/ptt_release.wav"));
-        f.open(QIODevice::ReadOnly);
-        return f.readAll();
-    }();
-    const QByteArray &d = active ? pressData : releaseData;
-    if (!d.isEmpty())
-        PlaySound(reinterpret_cast<LPCWSTR>(d.constData()), nullptr,
-                  SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
-#else
-    Q_UNUSED(active);
-#endif
 }
 
 // ---------------------------------------------------------------------------

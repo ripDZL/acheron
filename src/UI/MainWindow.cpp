@@ -4,6 +4,7 @@
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QSettings>
+#include <QTimer>
 #include <QIcon>
 
 #include "Chat/ChatModel.hpp"
@@ -78,6 +79,9 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
     setupMenu();
     setWindowIcon(QIcon(":/acheron.ico"));
     setupTrayIcon();
+
+    if (QSettings().value("general/show_accounts_on_launch", false).toBool())
+        QTimer::singleShot(0, this, &MainWindow::openAccountsWindow);
 
     qApp->installEventFilter(this);
 

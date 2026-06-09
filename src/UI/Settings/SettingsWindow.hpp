@@ -34,6 +34,7 @@ private:
     QCheckBox *avoidRedundantTabsCheckbox = nullptr;
     QCheckBox *showTrayIconCheckbox = nullptr;
     QCheckBox *closeToTrayCheckbox = nullptr;
+    QCheckBox *showAccountsOnLaunchCheckbox = nullptr;
 
     // discord
     QCheckBox *showNicknamesCheckbox = nullptr;

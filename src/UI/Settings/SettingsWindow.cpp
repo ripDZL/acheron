@@ -143,6 +143,12 @@ void SettingsWindow::buildGeneralPage()
         TabBar::setAvoidRedundantTabs(checked);
     });
 
+    showAccountsOnLaunchCheckbox = new QCheckBox(tr("Always show the Accounts panel on launch"), page);
+    layout->addWidget(showAccountsOnLaunchCheckbox);
+    connect(showAccountsOnLaunchCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        QSettings().setValue("general/show_accounts_on_launch", checked);
+    });
+
     auto *tabsNote = new QLabel(tr("Tab appearance changes take effect on the next tab interaction."), page);
     tabsNote->setWordWrap(true);
     tabsNote->setStyleSheet("color: palette(mid);");
@@ -312,6 +318,7 @@ void SettingsWindow::loadSettings()
     showCloseButtonCheckbox->setChecked(TabBar::showCloseButton());
     extraActiveHighlightCheckbox->setChecked(TabBar::extraActiveHighlight());
     avoidRedundantTabsCheckbox->setChecked(TabBar::avoidRedundantTabs());
+    showAccountsOnLaunchCheckbox->setChecked(settings.value("general/show_accounts_on_launch", false).toBool());
     showTrayIconCheckbox->setChecked(settings.value("tray/show_icon", true).toBool());
     closeToTrayCheckbox->setChecked(settings.value("tray/close_to_tray", true).toBool());
     showNicknamesCheckbox->setChecked(Core::UserManager::showNicknames());

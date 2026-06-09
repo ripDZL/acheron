@@ -248,9 +248,6 @@ target_link_libraries(${PROJECT_NAME}
         qt${QT_VERSION_MAJOR}keychain
         OpenSSL::Crypto
 )
-if(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE winmm)
-endif()
 if(ENABLE_VOICE)
     target_link_libraries(${PROJECT_NAME} PRIVATE
         unofficial-sodium::sodium
