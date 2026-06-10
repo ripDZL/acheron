@@ -657,8 +657,13 @@ void VoiceManager::onVoiceClientConnected()
     qCInfo(LogVoice) << "Voice connection established for channel" << channelId;
 
     bool capturing = !selfMute && !selfDeaf;
-    QByteArray inputId = currentInputDeviceId;
-    QByteArray outputId = currentOutputDeviceId;
+    // Read the persisted audio prefs fresh at connect time (the Settings > Audio
+    // tab and Voice panel write these); falling back to current live state.
+    QSettings audioSettings;
+    QByteArray inputId = audioSettings.value("voice/input_device", currentInputDeviceId).toByteArray();
+    QByteArray outputId = audioSettings.value("voice/output_device", currentOutputDeviceId).toByteArray();
+    currentInputDeviceId = inputId;
+    currentOutputDeviceId = outputId;
     IAudioBackend *backend = audioBackend.get();
     int application = cachedOpusApplication;
     int bitrate = cachedOpusBitrate;
@@ -668,7 +673,8 @@ void VoiceManager::onVoiceClientConnected()
     int plp = cachedOpusPacketLossPercent;
     float vadThreshold = cachedVadThreshold;
     bool pttMode = cachedPttMode;
-    bool mixMono = cachedMixMono;
+    bool mixMono = audioSettings.value("voice/mix_mono", cachedMixMono).toBool();
+    cachedMixMono = mixMono;
     bool noiseSuppress = cachedNoiseSuppress;
     QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, backend, capturing, inputId, outputId,
                                               application, bitrate, complexity, signalType, fec, plp,
