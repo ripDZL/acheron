@@ -227,6 +227,13 @@ if(ENABLE_VOICE)
     target_include_directories(rnnoise PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rnnoise/include)
     # M_PI is used in denoise.c/pitch.c; MSVC only defines it with this macro.
     target_compile_definitions(rnnoise PRIVATE _USE_MATH_DEFINES)
+    # RNNoise vendors CELT/Opus-derived code; force-include a header that prefixes
+    # its internal symbols so they don't clash with libopus at link time.
+    if(MSVC)
+        target_compile_options(rnnoise PRIVATE /FI${CMAKE_CURRENT_SOURCE_DIR}/vendor/rnnoise/rnnoise_symbol_rename.h)
+    else()
+        target_compile_options(rnnoise PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rnnoise/rnnoise_symbol_rename.h)
+    endif()
     target_link_libraries(${PROJECT_NAME} PRIVATE rnnoise)
     target_compile_definitions(${PROJECT_NAME} PRIVATE WITH_RNNOISE)
 endif()
