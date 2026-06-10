@@ -1,3 +1,4 @@
+#include "rnnoise_symbol_rename.h"
 /* Copyright (c) 2018 Gregor Richards */
 /*
    Redistribution and use in source and binary forms, with or without

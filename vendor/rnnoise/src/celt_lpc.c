@@ -1,3 +1,4 @@
+#include "rnnoise_symbol_rename.h"
 /* Copyright (c) 2009-2010 Xiph.Org Foundation
    Written by Jean-Marc Valin */
 /*

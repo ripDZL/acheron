@@ -1,3 +1,4 @@
+#include "rnnoise_symbol_rename.h"
 /* Copyright (c) 2008-2011 Octasic Inc.
                  2012-2017 Jean-Marc Valin */
 /*

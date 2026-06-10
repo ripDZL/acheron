@@ -27,5 +27,4 @@
 #define pitch_filter rnnoiseint_pitch_filter
 #define pitch_search rnnoiseint_pitch_search
 #define remove_doubling rnnoiseint_remove_doubling
-#define common rnnoiseint_common
 #endif

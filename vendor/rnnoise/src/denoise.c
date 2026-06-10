@@ -1,3 +1,4 @@
+#include "rnnoise_symbol_rename.h"
 /* Copyright (c) 2018 Gregor Richards
  * Copyright (c) 2017 Mozilla */
 /*
@@ -163,7 +164,7 @@ void interp_band_gain(float *g, const float *bandE) {
 }
 
 
-CommonState common;
+static CommonState common;
 
 static void check_init() {
   int i;
