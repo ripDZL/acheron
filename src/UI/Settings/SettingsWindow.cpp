@@ -398,10 +398,14 @@ void SettingsWindow::buildAudioPage()
 
     // --- Handlers (write QSettings; these keys are the shared source of truth) ---
     connect(audioInputCombo, &QComboBox::activated, this, [this](int i) {
-        QSettings().setValue("voice/input_device", audioInputCombo->itemData(i).toByteArray());
+        QSettings s;
+        s.setValue("voice/input_device", audioInputCombo->itemData(i).toByteArray());
+        s.sync();
     });
     connect(audioOutputCombo, &QComboBox::activated, this, [this](int i) {
-        QSettings().setValue("voice/output_device", audioOutputCombo->itemData(i).toByteArray());
+        QSettings s;
+        s.setValue("voice/output_device", audioOutputCombo->itemData(i).toByteArray());
+        s.sync();
     });
     connect(inputChannelsCombo, &QComboBox::currentIndexChanged, this, [this](int i) {
         QSettings().setValue("voice/mix_mono", i == 1);

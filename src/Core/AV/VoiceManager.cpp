@@ -658,12 +658,17 @@ void VoiceManager::onVoiceClientConnected()
 
     bool capturing = !selfMute && !selfDeaf;
     // Read the persisted audio prefs fresh at connect time (the Settings > Audio
-    // tab and Voice panel write these); falling back to current live state.
+    // tab and Voice panel write these). sync() forces a reload from disk so a
+    // change made earlier this session isn't served stale from QSettings' cache.
     QSettings audioSettings;
+    audioSettings.sync();
     QByteArray inputId = audioSettings.value("voice/input_device", currentInputDeviceId).toByteArray();
     QByteArray outputId = audioSettings.value("voice/output_device", currentOutputDeviceId).toByteArray();
     currentInputDeviceId = inputId;
     currentOutputDeviceId = outputId;
+    qCInfo(LogVoice) << "Voice connect: applying input device" << (inputId.isEmpty() ? "<system default>" : "<selected>")
+                     << "output" << (outputId.isEmpty() ? "<system default>" : "<selected>")
+                     << "inBytes" << inputId.size() << "outBytes" << outputId.size();
     IAudioBackend *backend = audioBackend.get();
     int application = cachedOpusApplication;
     int bitrate = cachedOpusBitrate;
