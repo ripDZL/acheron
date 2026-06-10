@@ -7,7 +7,7 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
         CACHE STRING "Vcpkg toolchain file")
 endif()
 
-project(acheron LANGUAGES CXX)
+project(acheron LANGUAGES C CXX)
 
 include(qt.cmake)
 
