@@ -232,7 +232,11 @@ bool MiniaudioAudioBackend::startCapture()
     }
 
     ma->captureDeviceInit = true;
-    selectedInputId = SerializeDeviceId(ma->captureDevice.capture.id);
+    // Only record the opened device's id when no explicit device was chosen
+    // (i.e. we opened the system default). Preserving an explicit selection keeps
+    // it matching the id saved in settings so the UI highlights it correctly.
+    if (selectedInputId.isEmpty())
+        selectedInputId = SerializeDeviceId(ma->captureDevice.capture.id);
     qCInfo(LogVoice) << "Miniaudio capture started:" << ma->captureDevice.capture.name;
     return true;
 }
@@ -284,7 +288,8 @@ bool MiniaudioAudioBackend::startPlayback()
     }
 
     ma->playbackDeviceInit = true;
-    selectedOutputId = SerializeDeviceId(ma->playbackDevice.playback.id);
+    if (selectedOutputId.isEmpty())
+        selectedOutputId = SerializeDeviceId(ma->playbackDevice.playback.id);
     qCInfo(LogVoice) << "Miniaudio playback started:" << ma->playbackDevice.playback.name;
     return true;
 }
