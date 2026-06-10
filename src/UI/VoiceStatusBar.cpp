@@ -208,6 +208,10 @@ void VoiceStatusBar::showVoiceWindow()
     if (!voiceWindow) {
         voiceWindow = new VoiceWindow(window());
         configureVoiceWindow();
+        connect(voiceWindow, &VoiceWindow::disconnectRequested,
+                this, &VoiceStatusBar::disconnectRequested);
+        connect(voiceWindow, &VoiceWindow::selfVoiceStateChanged,
+                this, &VoiceStatusBar::selfVoiceStateChangeRequested);
     }
 
     voiceWindow->show();

@@ -81,7 +81,7 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
     setupTrayIcon();
 
     if (QSettings().value("general/show_accounts_on_launch", false).toBool())
-        QTimer::singleShot(0, this, &MainWindow::openAccountsWindow);
+        QTimer::singleShot(0, this, &MainWindow::showAccountsPanel);
 
     // Auto-connect a single account on launch, if one is configured.
     {
@@ -562,6 +562,16 @@ void MainWindow::setupUi()
         for (const auto &inst : session->getClients()) {
             if (inst && inst->isInVoice()) {
                 inst->discord()->sendVoiceStateUpdate(inst->voiceGuildId(), Snowflake::Invalid, false, false);
+                break;
+            }
+        }
+    });
+    connect(voiceStatusBar, &VoiceStatusBar::selfVoiceStateChangeRequested, this,
+            [this](bool selfMute, bool selfDeaf) {
+        for (const auto &inst : session->getClients()) {
+            if (inst && inst->isInVoice()) {
+                inst->discord()->sendVoiceStateUpdate(inst->voiceGuildId(), inst->voiceChannelId(),
+                                                      selfMute, selfDeaf);
                 break;
             }
         }

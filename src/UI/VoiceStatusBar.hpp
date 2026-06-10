@@ -41,6 +41,7 @@ public:
 
 signals:
     void disconnectRequested();
+    void selfVoiceStateChangeRequested(bool selfMute, bool selfDeaf);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;

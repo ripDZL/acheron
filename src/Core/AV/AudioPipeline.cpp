@@ -195,6 +195,12 @@ void AudioPipeline::setPttActive(bool active)
     qCDebug(LogVoice) << "AudioPipeline::setPttActive ->" << active;
 }
 
+void AudioPipeline::setMixMono(bool enabled)
+{
+    mixMono.store(enabled, std::memory_order_relaxed);
+    qCInfo(LogVoice) << "AudioPipeline::setMixMono ->" << enabled;
+}
+
 void AudioPipeline::initializeEncoder()
 {
     encoder = std::make_unique<OpusEncoder>();
@@ -306,7 +312,20 @@ void AudioPipeline::onAudioCaptured(const QByteArray &pcmData)
     if (!isSpeaking)
         return;
 
-    QByteArray encoded = encoder->encode(pcmData);
+    QByteArray pcmToEncode = pcmData;
+    if (mixMono.load(std::memory_order_relaxed) && AUDIO_CHANNELS == 2) {
+        // Average L/R into both channels so the transmitted audio is mono
+        // (keeps the stereo frame layout the encoder expects).
+        auto *s = reinterpret_cast<int16_t *>(pcmToEncode.data());
+        const int frames = pcmToEncode.size() / static_cast<int>(sizeof(int16_t)) / 2;
+        for (int i = 0; i < frames; ++i) {
+            const int mixed = (static_cast<int>(s[2 * i]) + static_cast<int>(s[2 * i + 1])) / 2;
+            s[2 * i] = static_cast<int16_t>(mixed);
+            s[2 * i + 1] = static_cast<int16_t>(mixed);
+        }
+    }
+
+    QByteArray encoded = encoder->encode(pcmToEncode);
     if (!encoded.isEmpty())
         emit encodedAudioReady(encoded);
 }

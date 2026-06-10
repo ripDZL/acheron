@@ -130,6 +130,11 @@ public:
     void setImageManager(Core::ImageManager *manager);
     void refreshDevices();
 
+signals:
+    // selfMute/selfDeaf reflect the desired state of BOTH toggles together.
+    void selfVoiceStateChanged(bool selfMute, bool selfDeaf);
+    void disconnectRequested();
+
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
 
@@ -173,6 +178,10 @@ private:
     QVBoxLayout *userListLayout;
     QHash<Core::Snowflake, VoiceUserWidget *> userWidgets;
     QPushButton *privacyCodeBtn;
+    QCheckBox *selfMuteCheckbox = nullptr;
+    QCheckBox *selfDeafCheckbox = nullptr;
+    QCheckBox *mixMonoCheckbox = nullptr;
+    QPushButton *disconnectButton = nullptr;
 
     VolumeMeter *volumeMeter;
     QComboBox *inputDeviceCombo;

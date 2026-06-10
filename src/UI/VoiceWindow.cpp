@@ -16,6 +16,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QSettings>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 #include <opus.h>
@@ -312,6 +313,61 @@ void VoiceWindow::setupUi()
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(10, 8, 10, 10);
     layout->setSpacing(6);
+
+    // Self voice controls (mirrors the row in the reference client):
+    // Mute / Deafen / Mix Mono, plus a Disconnect button.
+    auto *controlsRow = new QHBoxLayout;
+    controlsRow->setSpacing(8);
+    selfMuteCheckbox = new QCheckBox(tr("Mute"), this);
+    selfDeafCheckbox = new QCheckBox(tr("Deafen"), this);
+    mixMonoCheckbox  = new QCheckBox(tr("Mix Mono"), this);
+    mixMonoCheckbox->setToolTip(tr("Downmix your microphone to mono before sending."));
+    controlsRow->addWidget(selfMuteCheckbox);
+    controlsRow->addWidget(selfDeafCheckbox);
+    controlsRow->addWidget(mixMonoCheckbox);
+    controlsRow->addStretch();
+    layout->addLayout(controlsRow);
+
+    auto *disconnectRow = new QHBoxLayout;
+    disconnectRow->addStretch();
+    disconnectButton = new QPushButton(tr("Disconnect"), this);
+    disconnectButton->setStyleSheet(
+        "QPushButton { padding: 4px 16px; }"
+        "QPushButton:hover { color: #fff; background-color: #f04747; border-color: #f04747; }");
+    disconnectRow->addWidget(disconnectButton);
+    disconnectRow->addStretch();
+    layout->addLayout(disconnectRow);
+
+    // Mix Mono is purely local audio processing -> drive the manager directly.
+    {
+        QSettings s;
+        mixMonoCheckbox->setChecked(s.value("voice/mix_mono", false).toBool());
+    }
+    connect(mixMonoCheckbox, &QCheckBox::toggled, this, [this](bool on) {
+        if (voiceManager)
+            voiceManager->setMixMono(on);
+        QSettings().setValue("voice/mix_mono", on);
+    });
+
+    // Deafening implies muting; un-muting also clears deafen. Both states are
+    // sent together to the gateway (handled by the owner via the signal).
+    connect(selfDeafCheckbox, &QCheckBox::toggled, this, [this](bool on) {
+        if (on && !selfMuteCheckbox->isChecked()) {
+            QSignalBlocker b(selfMuteCheckbox);
+            selfMuteCheckbox->setChecked(true);
+        }
+        emit selfVoiceStateChanged(selfMuteCheckbox->isChecked(), selfDeafCheckbox->isChecked());
+    });
+    connect(selfMuteCheckbox, &QCheckBox::toggled, this, [this](bool on) {
+        if (!on && selfDeafCheckbox->isChecked()) {
+            QSignalBlocker b(selfDeafCheckbox);
+            selfDeafCheckbox->setChecked(false);
+        }
+        emit selfVoiceStateChanged(selfMuteCheckbox->isChecked(), selfDeafCheckbox->isChecked());
+    });
+    connect(disconnectButton, &QPushButton::clicked, this, [this]() {
+        emit disconnectRequested();
+    });
 
     auto *usersHeaderRow = new QHBoxLayout;
     usersHeaderRow->setContentsMargins(0, 0, 0, 0);
@@ -791,6 +847,10 @@ void VoiceWindow::setVoiceManager(Core::AV::VoiceManager *manager)
         voiceManager->setPttMode(true);
         voiceManager->setPttActive(false);
     }
+
+    // Sync Mix Mono to the new manager
+    if (mixMonoCheckbox)
+        voiceManager->setMixMono(mixMonoCheckbox->isChecked());
 }
 
 void VoiceWindow::setNameResolver(NameResolver resolver)

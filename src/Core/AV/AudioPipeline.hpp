@@ -59,6 +59,7 @@ public slots:
     void setVadThreshold(float threshold);
     void setPttMode(bool enabled);
     void setPttActive(bool active);
+    void setMixMono(bool enabled);
 
     void setOpusApplication(int application);
     void setOpusBitrate(int bitrate);
@@ -96,6 +97,7 @@ private:
     float vadThreshold = 100.0f;
     bool pttMode = false;
     std::atomic<bool> pttActive{false};
+    std::atomic<bool> mixMono{false};
     int vadHoldoffFrames = 25;
     int vadHoldoffCounter = 0;
 

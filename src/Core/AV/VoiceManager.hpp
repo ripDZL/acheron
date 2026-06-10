@@ -58,6 +58,7 @@ public:
     void setVadThreshold(float threshold);
     void setPttMode(bool enabled);
     void setPttActive(bool active);
+    void setMixMono(bool enabled);
 
     void setOpusApplication(int application);
     void setOpusBitrate(int bitrate);
@@ -154,6 +155,7 @@ private:
     int cachedOpusPacketLossPercent = 0;
     float cachedVadThreshold = 100.0f;
     bool cachedPttMode = false;
+    bool cachedMixMono = false;
     QList<AudioDeviceInfo> cachedInputDevices;
     QList<AudioDeviceInfo> cachedOutputDevices;
 
