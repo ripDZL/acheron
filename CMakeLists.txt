@@ -211,6 +211,26 @@ endif()
 
 qt_add_translations(${PROJECT_NAME})
 
+# --- RNNoise (vendored): neural-network noise suppression for the microphone ---
+# vcpkg's rnnoise port is !windows, so we compile the upstream C sources directly
+# as a small static library (the trained model is baked into rnn_data.c).
+if(ENABLE_VOICE)
+    add_library(rnnoise STATIC
+        vendor/rnnoise/src/celt_lpc.c
+        vendor/rnnoise/src/denoise.c
+        vendor/rnnoise/src/kiss_fft.c
+        vendor/rnnoise/src/pitch.c
+        vendor/rnnoise/src/rnn.c
+        vendor/rnnoise/src/rnn_data.c
+        vendor/rnnoise/src/rnn_reader.c
+    )
+    target_include_directories(rnnoise PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rnnoise/include)
+    # M_PI is used in denoise.c/pitch.c; MSVC only defines it with this macro.
+    target_compile_definitions(rnnoise PRIVATE _USE_MATH_DEFINES)
+    target_link_libraries(${PROJECT_NAME} PRIVATE rnnoise)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE WITH_RNNOISE)
+endif()
+
 if (MSVC)
     target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
     target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/ZI> $<$<NOT:$<CONFIG:Debug>>:/Zi>)

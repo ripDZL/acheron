@@ -98,6 +98,12 @@ private:
     bool pttMode = false;
     std::atomic<bool> pttActive{false};
     std::atomic<bool> mixMono{false};
+
+#ifdef WITH_RNNOISE
+    // Opaque DenoiseState* (one per channel); kept as void* so the header
+    // doesn't need to pull in rnnoise.h.
+    void *rnnoiseState[2] = {nullptr, nullptr};
+#endif
     int vadHoldoffFrames = 25;
     int vadHoldoffCounter = 0;
 

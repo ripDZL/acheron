@@ -13,6 +13,10 @@
 #include <cmath>
 #include <cstring>
 
+#ifdef WITH_RNNOISE
+#include <rnnoise.h>
+#endif
+
 namespace Acheron {
 namespace Core {
 namespace AV {
@@ -20,10 +24,20 @@ namespace AV {
 AudioPipeline::AudioPipeline(QObject *parent)
     : QObject(parent)
 {
+#ifdef WITH_RNNOISE
+    rnnoiseState[0] = rnnoise_create(nullptr);
+    rnnoiseState[1] = rnnoise_create(nullptr);
+#endif
 }
 
 AudioPipeline::~AudioPipeline()
 {
+#ifdef WITH_RNNOISE
+    if (rnnoiseState[0])
+        rnnoise_destroy(static_cast<DenoiseState *>(rnnoiseState[0]));
+    if (rnnoiseState[1])
+        rnnoise_destroy(static_cast<DenoiseState *>(rnnoiseState[1]));
+#endif
 }
 
 void AudioPipeline::start(IAudioBackend *backend, bool capturing)
