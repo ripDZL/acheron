@@ -568,13 +568,20 @@ void MainWindow::setupUi()
     });
     connect(voiceStatusBar, &VoiceStatusBar::selfVoiceStateChangeRequested, this,
             [this](bool selfMute, bool selfDeaf) {
+        bool sent = false;
         for (const auto &inst : session->getClients()) {
             if (inst && inst->isInVoice()) {
+                qCInfo(LogVoice) << "Self voice state ->" << "mute" << selfMute << "deaf" << selfDeaf
+                                 << "guild" << static_cast<quint64>(inst->voiceGuildId())
+                                 << "channel" << static_cast<quint64>(inst->voiceChannelId());
                 inst->discord()->sendVoiceStateUpdate(inst->voiceGuildId(), inst->voiceChannelId(),
                                                       selfMute, selfDeaf);
+                sent = true;
                 break;
             }
         }
+        if (!sent)
+            qCWarning(LogVoice) << "Self mute/deafen requested but no in-voice instance was found";
     });
 #endif
 

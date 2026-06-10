@@ -356,6 +356,8 @@ void VoiceWindow::setupUi()
             QSignalBlocker b(selfMuteCheckbox);
             selfMuteCheckbox->setChecked(true);
         }
+        qCInfo(LogVoice) << "VoiceWindow: self state changed (deaf toggle) mute"
+                         << selfMuteCheckbox->isChecked() << "deaf" << selfDeafCheckbox->isChecked();
         emit selfVoiceStateChanged(selfMuteCheckbox->isChecked(), selfDeafCheckbox->isChecked());
     });
     connect(selfMuteCheckbox, &QCheckBox::toggled, this, [this](bool on) {
@@ -363,6 +365,8 @@ void VoiceWindow::setupUi()
             QSignalBlocker b(selfDeafCheckbox);
             selfDeafCheckbox->setChecked(false);
         }
+        qCInfo(LogVoice) << "VoiceWindow: self state changed (mute toggle) mute"
+                         << selfMuteCheckbox->isChecked() << "deaf" << selfDeafCheckbox->isChecked();
         emit selfVoiceStateChanged(selfMuteCheckbox->isChecked(), selfDeafCheckbox->isChecked());
     });
     connect(disconnectButton, &QPushButton::clicked, this, [this]() {
