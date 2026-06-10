@@ -1,4 +1,5 @@
 #include "rnnoise_symbol_rename.h"
+#include <stdlib.h>
 /* Copyright (c) 2009-2010 Xiph.Org Foundation
    Written by Jean-Marc Valin */
 /*
@@ -89,6 +90,7 @@ int          p
 }
 
 
+#if 0 /* celt_fir/celt_iir are unused in RNNoise and use VLAs that MSVC's C compiler rejects */
 void celt_fir(
          const opus_val16 *x,
          const opus_val16 *num,
@@ -195,6 +197,7 @@ void celt_iir(const opus_val32 *_x,
       mem[i] = _y[N-i-1];
 #endif
 }
+#endif /* unused celt_fir/celt_iir */
 
 int _celt_autocorr(
                    const opus_val16 *x,   /*  in: [0...n-1] samples x   */
@@ -209,7 +212,7 @@ int _celt_autocorr(
    int fastN=n-lag;
    int shift;
    const opus_val16 *xptr;
-   opus_val16 xx[n];
+   opus_val16 *xx = (opus_val16*)malloc(sizeof(opus_val16)*n);
    celt_assert(n>0);
    celt_assert(overlap>=0);
    if (overlap == 0)
@@ -276,5 +279,6 @@ int _celt_autocorr(
    }
 #endif
 
+   free(xx);
    return shift;
 }
