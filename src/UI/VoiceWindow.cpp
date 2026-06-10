@@ -622,6 +622,7 @@ void VoiceWindow::setupUi()
             return;
         QByteArray deviceId = inputDeviceCombo->itemData(index).toByteArray();
         voiceManager->setInputDevice(deviceId);
+        QSettings().setValue("voice/input_device", deviceId);
     });
 
     connect(outputDeviceCombo, &QComboBox::activated, this, [this](int index) {
@@ -629,6 +630,7 @@ void VoiceWindow::setupUi()
             return;
         QByteArray deviceId = outputDeviceCombo->itemData(index).toByteArray();
         voiceManager->setOutputDevice(deviceId);
+        QSettings().setValue("voice/output_device", deviceId);
     });
 
     buildAdvancedSection(layout);

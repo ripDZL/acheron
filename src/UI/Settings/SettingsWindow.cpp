@@ -6,6 +6,9 @@
 #include "UI/TabBar/TabBar.hpp"
 #include "Core/ImageManager.hpp"
 #include "Core/UserManager.hpp"
+#ifndef ACHERON_NO_VOICE
+#include "Core/AV/IAudioBackend.hpp"
+#endif
 
 #include <QSettings>
 
@@ -45,6 +48,11 @@ void SettingsWindow::setupUi()
     buildAudioPage();
 
     connect(categoryList, &QListWidget::currentRowChanged, pages, &QStackedWidget::setCurrentIndex);
+    // Refresh the device lists each time the Audio page (row 4) is opened.
+    connect(categoryList, &QListWidget::currentRowChanged, this, [this](int row) {
+        if (row == 4)
+            populateAudioDevices();
+    });
 
     mainLayout->addWidget(categoryList);
     mainLayout->addWidget(pages, 1);
@@ -278,26 +286,142 @@ void SettingsWindow::buildLanguagePage()
     pages->addWidget(page);
 }
 
+void SettingsWindow::populateAudioDevices()
+{
+    if (!audioInputCombo || !audioOutputCombo)
+        return;
+
+#ifndef ACHERON_NO_VOICE
+    // A standalone backend can enumerate devices without a live voice connection
+    // (enumeration only needs the audio context, not an open capture stream).
+    auto backend = Core::AV::IAudioBackend::create();
+    QSettings s;
+    const QByteArray savedIn = s.value("voice/input_device").toByteArray();
+    const QByteArray savedOut = s.value("voice/output_device").toByteArray();
+
+    auto fill = [](QComboBox *combo, const QList<Core::AV::AudioDeviceInfo> &devs,
+                   const QByteArray &sel, const QString &defaultLabel) {
+        QSignalBlocker block(combo);
+        combo->clear();
+        combo->addItem(defaultLabel, QByteArray());
+        int selIdx = 0;
+        for (const auto &d : devs) {
+            combo->addItem(d.description, d.id);
+            if (!sel.isEmpty() && d.id == sel)
+                selIdx = combo->count() - 1;
+        }
+        combo->setCurrentIndex(selIdx);
+    };
+    fill(audioInputCombo, backend->availableInputDevices(), savedIn, tr("System Default"));
+    fill(audioOutputCombo, backend->availableOutputDevices(), savedOut, tr("System Default"));
+#else
+    for (QComboBox *c : {audioInputCombo, audioOutputCombo}) {
+        QSignalBlocker block(c);
+        c->clear();
+        c->addItem(tr("Voice support not built"));
+        c->setEnabled(false);
+    }
+#endif
+}
+
 void SettingsWindow::buildAudioPage()
 {
     auto *page = new QWidget(this);
     auto *layout = new QVBoxLayout(page);
 
-    auto *header = new QLabel(tr("Voice & Audio"), page);
-    QFont bf = header->font();
-    bf.setBold(true);
-    header->setFont(bf);
-    layout->addWidget(header);
+    auto boldLabel = [page](const QString &text) {
+        auto *l = new QLabel(text, page);
+        QFont f = l->font();
+        f.setBold(true);
+        l->setFont(f);
+        return l;
+    };
 
-    auto *info = new QLabel(
-            tr("Microphone and output device selection, input/output levels, voice-activity "
-               "sensitivity, and Push-to-Talk are configured in the Voice panel, which opens "
-               "from the voice status bar when you're connected to a voice channel.\n\n"
-               "These controls live there because they require an active voice connection. "
-               "Inline audio settings here are planned as a follow-up."),
+    // --- Devices ---
+    layout->addWidget(boldLabel(tr("Devices")));
+    auto *devForm = new QFormLayout;
+    audioInputCombo = new QComboBox(page);
+    audioOutputCombo = new QComboBox(page);
+    devForm->addRow(tr("Input Device"), audioInputCombo);
+    devForm->addRow(tr("Output Device"), audioOutputCombo);
+    layout->addLayout(devForm);
+
+    // --- Mixing ---
+    layout->addWidget(boldLabel(tr("Mixing")));
+    auto *mixForm = new QFormLayout;
+    inputChannelsCombo = new QComboBox(page);
+    inputChannelsCombo->addItem(tr("Stereo"));
+    inputChannelsCombo->addItem(tr("Mono"));
+    inputChannelsCombo->setToolTip(tr("Mono downmixes your microphone before sending (shares the Mix Mono setting)."));
+    mixForm->addRow(tr("Input Channels"), inputChannelsCombo);
+    layout->addLayout(mixForm);
+
+    // --- Behavior ---
+    layout->addWidget(boldLabel(tr("Behavior")));
+    auto *behForm = new QFormLayout;
+    micModeCombo = new QComboBox(page);
+    micModeCombo->addItem(tr("Voice Activity"));
+    micModeCombo->addItem(tr("Push to Talk"));
+    behForm->addRow(tr("Microphone Mode"), micModeCombo);
+
+    auto *pttRow = new QHBoxLayout;
+    pttHotkeyEdit = new QKeySequenceEdit(page);
+    pttHotkeyEdit->setMaximumSequenceLength(1);
+    pttHotkeyEdit->setToolTip(tr("Click here, then press the key to use for Push to Talk."));
+    pttHotkeyClear = new QPushButton(tr("Clear"), page);
+    pttRow->addWidget(pttHotkeyEdit, 1);
+    pttRow->addWidget(pttHotkeyClear);
+    behForm->addRow(tr("Push to Talk Hotkey"), pttRow);
+    layout->addLayout(behForm);
+
+    auto *note = new QLabel(
+            tr("Device and channel changes apply the next time you connect to voice. "
+               "Microphone mode and hotkey apply when the voice panel is open."),
             page);
-    info->setWordWrap(true);
-    layout->addWidget(info);
+    note->setWordWrap(true);
+    note->setStyleSheet("color: palette(mid);");
+    layout->addWidget(note);
+
+    // --- Load current values (before connecting handlers so we don't echo writes) ---
+    populateAudioDevices();
+    {
+        QSettings s;
+        inputChannelsCombo->setCurrentIndex(s.value("voice/mix_mono", false).toBool() ? 1 : 0);
+        const bool ptt = s.value("voice/ptt_mode", false).toBool();
+        micModeCombo->setCurrentIndex(ptt ? 1 : 0);
+        const int key = s.value("voice/ptt_key", 0).toInt();
+        if (key != 0)
+            pttHotkeyEdit->setKeySequence(QKeySequence(key));
+        pttHotkeyEdit->setEnabled(ptt);
+        pttHotkeyClear->setEnabled(ptt && key != 0);
+    }
+
+    // --- Handlers (write QSettings; these keys are the shared source of truth) ---
+    connect(audioInputCombo, &QComboBox::activated, this, [this](int i) {
+        QSettings().setValue("voice/input_device", audioInputCombo->itemData(i).toByteArray());
+    });
+    connect(audioOutputCombo, &QComboBox::activated, this, [this](int i) {
+        QSettings().setValue("voice/output_device", audioOutputCombo->itemData(i).toByteArray());
+    });
+    connect(inputChannelsCombo, &QComboBox::currentIndexChanged, this, [this](int i) {
+        QSettings().setValue("voice/mix_mono", i == 1);
+    });
+    connect(micModeCombo, &QComboBox::currentIndexChanged, this, [this](int i) {
+        const bool ptt = (i == 1);
+        QSettings().setValue("voice/ptt_mode", ptt);
+        pttHotkeyEdit->setEnabled(ptt);
+        pttHotkeyClear->setEnabled(ptt && !pttHotkeyEdit->keySequence().isEmpty());
+    });
+    connect(pttHotkeyEdit, &QKeySequenceEdit::keySequenceChanged, this, [this](const QKeySequence &seq) {
+        const int key = seq.isEmpty() ? 0 : seq[0].key();
+        QSettings().setValue("voice/ptt_key", key);
+        pttHotkeyClear->setEnabled(micModeCombo->currentIndex() == 1 && key != 0);
+    });
+    connect(pttHotkeyClear, &QPushButton::clicked, this, [this]() {
+        pttHotkeyEdit->clear();
+        QSettings().setValue("voice/ptt_key", 0);
+        pttHotkeyClear->setEnabled(false);
+    });
 
     layout->addStretch();
     pages->addWidget(page);

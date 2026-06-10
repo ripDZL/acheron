@@ -1,4 +1,5 @@
 #include "VoiceManager.hpp"
+#include <QSettings>
 #include "AudioPipeline.hpp"
 
 #include "Core/Logging.hpp"
@@ -11,6 +12,13 @@ VoiceManager::VoiceManager(Snowflake accountId, QObject *parent)
     : QObject(parent), accountId(accountId), audioBackend(IAudioBackend::create())
 {
     connect(audioBackend.get(), &IAudioBackend::devicesChanged, this, &VoiceManager::onDevicesChanged);
+
+    // Persisted audio preferences (shared with the Settings > Audio tab and the
+    // Voice panel) so device + mono choices apply on connect without the panel.
+    QSettings s;
+    currentInputDeviceId = s.value("voice/input_device").toByteArray();
+    currentOutputDeviceId = s.value("voice/output_device").toByteArray();
+    cachedMixMono = s.value("voice/mix_mono", false).toBool();
 }
 
 VoiceManager::~VoiceManager()

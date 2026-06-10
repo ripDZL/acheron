@@ -44,6 +44,15 @@ private:
 
     // language
     QComboBox *languageCombo = nullptr;
+
+    // audio
+    QComboBox *audioInputCombo = nullptr;
+    QComboBox *audioOutputCombo = nullptr;
+    QComboBox *inputChannelsCombo = nullptr;
+    QComboBox *micModeCombo = nullptr;
+    QKeySequenceEdit *pttHotkeyEdit = nullptr;
+    QPushButton *pttHotkeyClear = nullptr;
+    void populateAudioDevices();
 };
 
 } // namespace UI
