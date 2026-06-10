@@ -90,9 +90,10 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
         const quint64 idv = autoId.toULongLong(&ok);
         if (ok && idv != 0) {
             const Core::Snowflake accId(idv);
-            QTimer::singleShot(0, this, [this, accId]() {
-                if (!session->hasActiveConnection())
-                    session->connectAccount(accId);
+            Core::Session *sess = session;
+            QTimer::singleShot(0, this, [accId, sess]() {
+                if (!sess->hasActiveConnection())
+                    sess->connectAccount(accId);
             });
         }
     }
