@@ -322,9 +322,12 @@ void VoiceWindow::setupUi()
     selfDeafCheckbox = new QCheckBox(tr("Deafen"), this);
     mixMonoCheckbox  = new QCheckBox(tr("Mix Mono"), this);
     mixMonoCheckbox->setToolTip(tr("Downmix your microphone to mono before sending."));
+    noiseSuppressCheckbox = new QCheckBox(tr("Suppress Noise"), this);
+    noiseSuppressCheckbox->setToolTip(tr("Remove background noise from your microphone (RNNoise)."));
     controlsRow->addWidget(selfMuteCheckbox);
     controlsRow->addWidget(selfDeafCheckbox);
     controlsRow->addWidget(mixMonoCheckbox);
+    controlsRow->addWidget(noiseSuppressCheckbox);
     controlsRow->addStretch();
     layout->addLayout(controlsRow);
 
@@ -347,6 +350,17 @@ void VoiceWindow::setupUi()
         if (voiceManager)
             voiceManager->setMixMono(on);
         QSettings().setValue("voice/mix_mono", on);
+    });
+
+    // Noise suppression is purely local audio processing -> drive the manager directly.
+    {
+        QSettings s;
+        noiseSuppressCheckbox->setChecked(s.value("voice/noise_suppress", false).toBool());
+    }
+    connect(noiseSuppressCheckbox, &QCheckBox::toggled, this, [this](bool on) {
+        if (voiceManager)
+            voiceManager->setNoiseSuppress(on);
+        QSettings().setValue("voice/noise_suppress", on);
     });
 
     // Deafening implies muting; un-muting also clears deafen. Both states are
@@ -855,6 +869,10 @@ void VoiceWindow::setVoiceManager(Core::AV::VoiceManager *manager)
     // Sync Mix Mono to the new manager
     if (mixMonoCheckbox)
         voiceManager->setMixMono(mixMonoCheckbox->isChecked());
+
+    // Sync noise suppression to the new manager
+    if (noiseSuppressCheckbox)
+        voiceManager->setNoiseSuppress(noiseSuppressCheckbox->isChecked());
 }
 
 void VoiceWindow::setNameResolver(NameResolver resolver)

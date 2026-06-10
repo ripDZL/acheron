@@ -254,6 +254,13 @@ void VoiceManager::setMixMono(bool enabled)
         QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, enabled]() { p->setMixMono(enabled); });
 }
 
+void VoiceManager::setNoiseSuppress(bool enabled)
+{
+    cachedNoiseSuppress = enabled;
+    if (audioPipeline)
+        QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, enabled]() { p->setNoiseSuppress(enabled); });
+}
+
 void VoiceManager::setPttActive(bool active)
 {
     if (audioPipeline)
@@ -654,9 +661,10 @@ void VoiceManager::onVoiceClientConnected()
     float vadThreshold = cachedVadThreshold;
     bool pttMode = cachedPttMode;
     bool mixMono = cachedMixMono;
+    bool noiseSuppress = cachedNoiseSuppress;
     QMetaObject::invokeMethod(audioPipeline, [p = audioPipeline, backend, capturing, inputId, outputId,
                                               application, bitrate, complexity, signalType, fec, plp,
-                                              vadThreshold, pttMode, mixMono]() {
+                                              vadThreshold, pttMode, mixMono, noiseSuppress]() {
         p->setOpusApplication(application);
         p->setOpusBitrate(bitrate);
         p->setOpusComplexity(complexity);
@@ -666,6 +674,7 @@ void VoiceManager::onVoiceClientConnected()
         p->setVadThreshold(vadThreshold);
         p->setPttMode(pttMode);
         p->setMixMono(mixMono);
+        p->setNoiseSuppress(noiseSuppress);
         p->start(backend, capturing);
         if (!inputId.isEmpty())
             p->setInputDevice(inputId);

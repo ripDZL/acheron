@@ -181,6 +181,7 @@ private:
     QCheckBox *selfMuteCheckbox = nullptr;
     QCheckBox *selfDeafCheckbox = nullptr;
     QCheckBox *mixMonoCheckbox = nullptr;
+    QCheckBox *noiseSuppressCheckbox = nullptr;
     QPushButton *disconnectButton = nullptr;
 
     VolumeMeter *volumeMeter;

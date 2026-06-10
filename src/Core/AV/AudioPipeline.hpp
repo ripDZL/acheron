@@ -60,6 +60,7 @@ public slots:
     void setPttMode(bool enabled);
     void setPttActive(bool active);
     void setMixMono(bool enabled);
+    void setNoiseSuppress(bool enabled);
 
     void setOpusApplication(int application);
     void setOpusBitrate(int bitrate);
@@ -98,11 +99,14 @@ private:
     bool pttMode = false;
     std::atomic<bool> pttActive{false};
     std::atomic<bool> mixMono{false};
+    std::atomic<bool> noiseSuppress{false};
 
 #ifdef WITH_RNNOISE
     // Opaque DenoiseState* (one per channel); kept as void* so the header
     // doesn't need to pull in rnnoise.h.
     void *rnnoiseState[2] = {nullptr, nullptr};
+    // Runs RNNoise per-channel over the interleaved int16 frame, in place.
+    void applyNoiseSuppression(QByteArray &pcm);
 #endif
     int vadHoldoffFrames = 25;
     int vadHoldoffCounter = 0;

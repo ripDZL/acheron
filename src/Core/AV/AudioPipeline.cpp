@@ -215,6 +215,54 @@ void AudioPipeline::setMixMono(bool enabled)
     qCInfo(LogVoice) << "AudioPipeline::setMixMono ->" << enabled;
 }
 
+void AudioPipeline::setNoiseSuppress(bool enabled)
+{
+    noiseSuppress.store(enabled, std::memory_order_relaxed);
+    qCInfo(LogVoice) << "AudioPipeline::setNoiseSuppress ->" << enabled;
+}
+
+#ifdef WITH_RNNOISE
+void AudioPipeline::applyNoiseSuppression(QByteArray &pcm)
+{
+    if (!rnnoiseState[0])
+        return;
+
+    constexpr int kBlock = 480; // RNNoise operates on fixed 480-sample frames
+    auto *s = reinterpret_cast<int16_t *>(pcm.data());
+    const int totalSamples = pcm.size() / static_cast<int>(sizeof(int16_t));
+    const int channels = AUDIO_CHANNELS;
+    if (channels <= 0)
+        return;
+    const int perChannel = totalSamples / channels;
+    const int blocks = perChannel / kBlock;
+    if (blocks <= 0)
+        return;
+
+    float inbuf[kBlock];
+    float outbuf[kBlock];
+    for (int ch = 0; ch < channels && ch < 2; ++ch) {
+        auto *st = static_cast<DenoiseState *>(rnnoiseState[ch]);
+        if (!st)
+            continue;
+        for (int b = 0; b < blocks; ++b) {
+            const int base = b * kBlock;
+            // RNNoise expects float samples in int16 range (not normalised).
+            for (int i = 0; i < kBlock; ++i)
+                inbuf[i] = static_cast<float>(s[(base + i) * channels + ch]);
+            rnnoise_process_frame(st, outbuf, inbuf);
+            for (int i = 0; i < kBlock; ++i) {
+                float f = outbuf[i];
+                if (f > 32767.0f)
+                    f = 32767.0f;
+                else if (f < -32768.0f)
+                    f = -32768.0f;
+                s[(base + i) * channels + ch] = static_cast<int16_t>(f);
+            }
+        }
+    }
+}
+#endif
+
 void AudioPipeline::initializeEncoder()
 {
     encoder = std::make_unique<OpusEncoder>();
@@ -286,9 +334,21 @@ void AudioPipeline::onAudioCaptured(const QByteArray &pcmData)
     if (!encoder)
         return;
 
+    // Noise suppression runs first and on every frame (continuously) so RNNoise
+    // keeps its internal state warm and VAD/metering see the cleaned signal.
+    const QByteArray *frame = &pcmData;
+#ifdef WITH_RNNOISE
+    QByteArray cleaned;
+    if (noiseSuppress.load(std::memory_order_relaxed)) {
+        cleaned = pcmData;
+        applyNoiseSuppression(cleaned);
+        frame = &cleaned;
+    }
+#endif
+
     // Always compute RMS so the input volume meter stays active in both modes
-    const auto *samples = reinterpret_cast<const int16_t *>(pcmData.constData());
-    int sampleCount = pcmData.size() / static_cast<int>(sizeof(int16_t));
+    const auto *samples = reinterpret_cast<const int16_t *>(frame->constData());
+    int sampleCount = frame->size() / static_cast<int>(sizeof(int16_t));
     float rms = (sampleCount > 0) ? computeRms(samples, sampleCount) : 0.0f;
 
     bool voiceDetected;
@@ -326,7 +386,7 @@ void AudioPipeline::onAudioCaptured(const QByteArray &pcmData)
     if (!isSpeaking)
         return;
 
-    QByteArray pcmToEncode = pcmData;
+    QByteArray pcmToEncode = *frame;
     if (mixMono.load(std::memory_order_relaxed) && AUDIO_CHANNELS == 2) {
         // Average L/R into both channels so the transmitted audio is mono
         // (keeps the stereo frame layout the encoder expects).
