@@ -175,6 +175,13 @@ ClientInstance::ClientInstance(const AccountInfo &info,
 
                 db.commit();
 
+                if (data.friendPresences.hasValue()) {
+                    for (const auto &pres : data.friendPresences.get()) {
+                        if (pres.userId.hasValue() && pres.status.hasValue())
+                            presenceManager->update(pres.userId.get(), pres.status.get());
+                    }
+                }
+
 #ifndef ACHERON_NO_VOICE
                 for (const auto &guild : data.guilds.get()) {
                     if (!guild.voiceStates.hasValue())

@@ -10,6 +10,25 @@
 namespace Acheron {
 namespace Discord {
 
+struct PresenceUpdate : Core::JsonUtils::JsonObject
+{
+    Field<Core::Snowflake> userId;
+    Field<QString> status;
+    Field<Core::Snowflake, true> guildId;
+
+    static PresenceUpdate fromJson(const QJsonObject &obj)
+    {
+        PresenceUpdate ev;
+        if (obj.contains("user") && obj["user"].isObject()) {
+            const QJsonObject user = obj["user"].toObject();
+            ev.userId = Core::Snowflake(user.value("id").toString().toULongLong());
+        }
+        get(obj, "status", ev.status);
+        get(obj, "guild_id", ev.guildId);
+        return ev;
+    }
+};
+
 struct Ready : Core::JsonUtils::JsonObject
 {
     Field<User> user;
@@ -85,12 +104,25 @@ struct ReadySupplemental : Core::JsonUtils::JsonObject
 {
     Field<QList<SupplementalGuild>> guilds;
     Field<QList<QList<Member>>> mergedMembers;
+    Field<QList<PresenceUpdate>, true> friendPresences; // merged_presences.friends
 
     static ReadySupplemental fromJson(const QJsonObject &obj)
     {
         ReadySupplemental readySupplemental;
         get(obj, "guilds", readySupplemental.guilds);
         get(obj, "merged_members", readySupplemental.mergedMembers);
+        if (obj.contains("merged_presences") && obj["merged_presences"].isObject()) {
+            const QJsonObject mp = obj["merged_presences"].toObject();
+            QList<PresenceUpdate> friends;
+            for (const QJsonValue &v : mp.value("friends").toArray()) {
+                const QJsonObject pres = v.toObject();
+                PresenceUpdate pu;
+                pu.userId = Core::Snowflake(pres.value("user_id").toString().toULongLong());
+                pu.status = pres.value("status").toString();
+                friends.append(pu);
+            }
+            readySupplemental.friendPresences = friends;
+        }
         return readySupplemental;
     }
 };
@@ -112,25 +144,6 @@ struct TypingStart : Core::JsonUtils::JsonObject
         get(obj, "member", typingStart.member);
         typingStart.timestamp = QDateTime::fromSecsSinceEpoch(obj["timestamp"].toInteger());
         return typingStart;
-    }
-};
-
-struct PresenceUpdate : Core::JsonUtils::JsonObject
-{
-    Field<Core::Snowflake> userId;
-    Field<QString> status;
-    Field<Core::Snowflake, true> guildId;
-
-    static PresenceUpdate fromJson(const QJsonObject &obj)
-    {
-        PresenceUpdate ev;
-        if (obj.contains("user") && obj["user"].isObject()) {
-            const QJsonObject user = obj["user"].toObject();
-            ev.userId = Core::Snowflake(user.value("id").toString().toULongLong());
-        }
-        get(obj, "status", ev.status);
-        get(obj, "guild_id", ev.guildId);
-        return ev;
     }
 };
 

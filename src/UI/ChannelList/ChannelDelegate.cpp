@@ -3,6 +3,8 @@
 #include "ChannelNode.hpp"
 #include "ChannelTreeModel.hpp"
 #include "ChannelFilterProxyModel.hpp"
+#include "Core/Presence.hpp"
+#include "Core/PresenceManager.hpp"
 
 namespace Acheron {
 namespace UI {
@@ -389,12 +391,31 @@ void ChannelDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
 
     // draw icon for Server and DMChannel
     if (node->type == ChannelNode::Type::Server || node->type == ChannelNode::Type::DMChannel) {
+        QRect iconRect = QRect(contentOpt.rect.left(),
+                               contentOpt.rect.top() + (contentOpt.rect.height() - iconSize) / 2,
+                               iconSize, iconSize);
         QPixmap icon = qvariant_cast<QPixmap>(index.data(Qt::DecorationRole));
-        if (!icon.isNull()) {
-            QRect iconRect = QRect(contentOpt.rect.left(),
-                                   contentOpt.rect.top() + (contentOpt.rect.height() - iconSize) / 2,
-                                   iconSize, iconSize);
+        if (!icon.isNull())
             painter->drawPixmap(iconRect, icon);
+
+        // Presence dot for 1:1 DMs.
+        if (node->type == ChannelNode::Type::DMChannel && presenceManager &&
+            node->dmRecipientId.isValid()) {
+            QColor dotColor = Core::presenceDotColor(presenceManager->statusOf(node->dmRecipientId));
+            if (dotColor.isValid()) {
+                const qreal dotRadius = qMax(3.0, iconRect.width() / 6.0);
+                const qreal ringWidth = qMax(1.5, dotRadius * 0.55);
+                QPointF dotCenter(iconRect.right() - dotRadius + 1.0,
+                                  iconRect.bottom() - dotRadius + 1.0);
+                painter->save();
+                painter->setRenderHint(QPainter::Antialiasing, true);
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(option.palette.color(QPalette::Base));
+                painter->drawEllipse(dotCenter, dotRadius + ringWidth, dotRadius + ringWidth);
+                painter->setBrush(dotColor);
+                painter->drawEllipse(dotCenter, dotRadius, dotRadius);
+                painter->restore();
+            }
         }
     }
 

@@ -395,10 +395,12 @@ void MainWindow::switchActiveInstance(Core::ClientInstance *newInstance)
     memberListModel->setManager(currentInstance->memberList());
     memberListModel->setPresenceManager(currentInstance->presences());
     chatDelegate->setPresenceManager(currentInstance->presences());
+    channelDelegate->setPresenceManager(currentInstance->presences());
     connect(currentInstance->presences(), &Core::PresenceManager::presenceChanged, this,
             [this]() {
                 memberListView->viewport()->update();
                 chatView->viewport()->update();
+                channelTree->viewport()->update();
             });
     connect(memberListView, &MemberListView::visibleRangeChanged,
             currentInstance->memberList(), &Core::MemberListManager::updateSubscriptionRange);
@@ -742,7 +744,8 @@ void MainWindow::setupUi()
     channelTree->setModel(channelFilterProxy);
     channelTree->setHeaderHidden(true);
     channelTree->setIndentation(0);
-    channelTree->setItemDelegate(new ChannelDelegate(channelFilterProxy, channelTree));
+    channelDelegate = new ChannelDelegate(channelFilterProxy, channelTree);
+    channelTree->setItemDelegate(channelDelegate);
     channelTree->setIconSize(QSize(24, 24));
     channelTree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     channelTree->setFrameShape(QFrame::NoFrame);

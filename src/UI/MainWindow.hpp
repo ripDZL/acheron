@@ -27,6 +27,7 @@ class AccountsWindow;
 class AccountsModel;
 class SettingsWindow;
 class ChannelTreeView;
+class ChannelDelegate;
 struct ChannelNode;
 class TypingIndicator;
 class SlowModeIndicator;
@@ -83,6 +84,7 @@ private:
     ChatDelegate *chatDelegate = nullptr;
 
     ChannelTreeView *channelTree;
+    ChannelDelegate *channelDelegate = nullptr;
     ChannelTreeModel *channelTreeModel;
     ChannelFilterProxyModel *channelFilterProxy;
 
