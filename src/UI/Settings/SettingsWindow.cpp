@@ -299,22 +299,25 @@ void SettingsWindow::populateAudioDevices()
     QSettings s;
     const QByteArray savedIn = s.value("voice/input_device").toByteArray();
     const QByteArray savedOut = s.value("voice/output_device").toByteArray();
+    const QString savedInName = s.value("voice/input_device_name").toString();
+    const QString savedOutName = s.value("voice/output_device_name").toString();
 
     auto fill = [](QComboBox *combo, const QList<Core::AV::AudioDeviceInfo> &devs,
-                   const QByteArray &sel, const QString &defaultLabel) {
+                   const QByteArray &sel, const QString &selName, const QString &defaultLabel) {
         QSignalBlocker block(combo);
         combo->clear();
         combo->addItem(defaultLabel, QByteArray());
         int selIdx = 0;
         for (const auto &d : devs) {
             combo->addItem(d.description, d.id);
-            if (!sel.isEmpty() && d.id == sel)
+            // id bytes aren't stable across backend instances, so also match by name
+            if ((!sel.isEmpty() && d.id == sel) || (!selName.isEmpty() && d.description == selName))
                 selIdx = combo->count() - 1;
         }
         combo->setCurrentIndex(selIdx);
     };
-    fill(audioInputCombo, enumBackend->availableInputDevices(), savedIn, tr("System Default"));
-    fill(audioOutputCombo, enumBackend->availableOutputDevices(), savedOut, tr("System Default"));
+    fill(audioInputCombo, enumBackend->availableInputDevices(), savedIn, savedInName, tr("System Default"));
+    fill(audioOutputCombo, enumBackend->availableOutputDevices(), savedOut, savedOutName, tr("System Default"));
 #else
     for (QComboBox *c : {audioInputCombo, audioOutputCombo}) {
         QSignalBlocker block(c);
@@ -401,11 +404,13 @@ void SettingsWindow::buildAudioPage()
     connect(audioInputCombo, &QComboBox::activated, this, [this](int i) {
         QSettings s;
         s.setValue("voice/input_device", audioInputCombo->itemData(i).toByteArray());
+        s.setValue("voice/input_device_name", audioInputCombo->itemText(i));
         s.sync();
     });
     connect(audioOutputCombo, &QComboBox::activated, this, [this](int i) {
         QSettings s;
         s.setValue("voice/output_device", audioOutputCombo->itemData(i).toByteArray());
+        s.setValue("voice/output_device_name", audioOutputCombo->itemText(i));
         s.sync();
     });
     connect(inputChannelsCombo, &QComboBox::currentIndexChanged, this, [this](int i) {

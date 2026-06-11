@@ -622,7 +622,11 @@ void VoiceWindow::setupUi()
             return;
         QByteArray deviceId = inputDeviceCombo->itemData(index).toByteArray();
         voiceManager->setInputDevice(deviceId);
-        QSettings().setValue("voice/input_device", deviceId);
+        QString name = inputDeviceCombo->itemText(index);
+        name.remove(QObject::tr(" (Default)"));
+        QSettings s;
+        s.setValue("voice/input_device", deviceId);
+        s.setValue("voice/input_device_name", name);
     });
 
     connect(outputDeviceCombo, &QComboBox::activated, this, [this](int index) {
@@ -630,7 +634,11 @@ void VoiceWindow::setupUi()
             return;
         QByteArray deviceId = outputDeviceCombo->itemData(index).toByteArray();
         voiceManager->setOutputDevice(deviceId);
-        QSettings().setValue("voice/output_device", deviceId);
+        QString name = outputDeviceCombo->itemText(index);
+        name.remove(QObject::tr(" (Default)"));
+        QSettings s;
+        s.setValue("voice/output_device", deviceId);
+        s.setValue("voice/output_device_name", name);
     });
 
     buildAdvancedSection(layout);
@@ -918,7 +926,7 @@ void VoiceWindow::refreshDevices()
         return;
 
     auto populateCombo = [](QComboBox *combo, const QList<Core::AV::AudioDeviceInfo> &devices,
-                            const QByteArray &currentId) {
+                            const QByteArray &currentId, const QString &currentName) {
         combo->blockSignals(true);
         combo->clear();
         int selectedIndex = 0;
@@ -928,17 +936,26 @@ void VoiceWindow::refreshDevices()
             if (dev.isDefault)
                 label += QObject::tr(" (Default)");
             combo->addItem(label, dev.id);
+            // Match by id first; fall back to the device name, because the raw
+            // ma_device_id bytes are not stable across backend instances (the
+            // Settings tab enumerates with a different backend than voice), so an
+            // exact id comparison can miss even though the device is the same.
             if (!currentId.isEmpty() && dev.id == currentId)
                 selectedIndex = i;
-            else if (currentId.isEmpty() && dev.isDefault)
+            else if (!currentName.isEmpty() && dev.description == currentName)
+                selectedIndex = i;
+            else if (currentId.isEmpty() && currentName.isEmpty() && dev.isDefault)
                 selectedIndex = i;
         }
         combo->setCurrentIndex(selectedIndex);
         combo->blockSignals(false);
     };
 
-    populateCombo(inputDeviceCombo, voiceManager->availableInputDevices(), voiceManager->currentInputDevice());
-    populateCombo(outputDeviceCombo, voiceManager->availableOutputDevices(), voiceManager->currentOutputDevice());
+    QSettings devSettings;
+    populateCombo(inputDeviceCombo, voiceManager->availableInputDevices(), voiceManager->currentInputDevice(),
+                  devSettings.value("voice/input_device_name").toString());
+    populateCombo(outputDeviceCombo, voiceManager->availableOutputDevices(), voiceManager->currentOutputDevice(),
+                  devSettings.value("voice/output_device_name").toString());
 }
 
 void VoiceWindow::disconnectManager()
