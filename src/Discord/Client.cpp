@@ -46,6 +46,7 @@ Client::Client(const QString &token, const QString &gatewayUrl, const QString &b
     connect(gateway, &Gateway::gatewayUserGuildSettingsUpdate, this,
             &Client::userGuildSettingsUpdated);
     connect(gateway, &Gateway::gatewayGuildMemberListUpdate, this, &Client::guildMemberListUpdate);
+    connect(gateway, &Gateway::gatewayPresenceUpdate, this, &Client::presenceUpdate);
     connect(gateway, &Gateway::gatewayVoiceStateUpdate, this, &Client::voiceStateUpdated);
     connect(gateway, &Gateway::gatewayVoiceServerUpdate, this, &Client::voiceServerUpdated);
     connect(gateway, &Gateway::gatewayRelationshipAdd, this, &Client::relationshipAdded);

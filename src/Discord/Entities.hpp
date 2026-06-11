@@ -63,6 +63,7 @@ struct Member : Core::JsonUtils::JsonObject
     Field<bool, true> pending;
     Field<QDateTime, true, true> communicationDisabledUntil;
     Field<Core::Snowflake, true> userId; // supplemental
+    Field<QString, true> presenceStatus; // from nested "presence":{"status":...} in member-list items
 
     static Member fromJson(const QJsonObject &obj)
     {
@@ -79,6 +80,8 @@ struct Member : Core::JsonUtils::JsonObject
         get(obj, "pending", member.pending);
         get(obj, "communication_disabled_until", member.communicationDisabledUntil);
         get(obj, "user_id", member.userId);
+        if (obj.contains("presence") && obj["presence"].isObject())
+            member.presenceStatus = obj["presence"].toObject().value("status").toString();
         return member;
     }
 };

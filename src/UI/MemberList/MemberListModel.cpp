@@ -23,6 +23,11 @@ void MemberListModel::setManager(Core::MemberListManager *newManager)
     endResetModel();
 }
 
+void MemberListModel::setPresenceManager(Core::PresenceManager *presences)
+{
+    presenceManager = presences;
+}
+
 int MemberListModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid() || !manager)
@@ -58,6 +63,10 @@ QVariant MemberListModel::data(const QModelIndex &index, int role) const
         return static_cast<int>(item->type);
     case LoadedRole:
         return true;
+    case StatusRole:
+        return item->type == Core::MemberListItem::Type::Member && presenceManager
+                       ? static_cast<int>(presenceManager->statusOf(item->userId))
+                       : static_cast<int>(Core::PresenceStatus::Unknown);
     case UserIdRole:
         return item->type == Core::MemberListItem::Type::Member
                        ? QVariant::fromValue(static_cast<quint64>(item->userId))

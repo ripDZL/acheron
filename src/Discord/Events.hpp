@@ -115,6 +115,25 @@ struct TypingStart : Core::JsonUtils::JsonObject
     }
 };
 
+struct PresenceUpdate : Core::JsonUtils::JsonObject
+{
+    Field<Core::Snowflake> userId;
+    Field<QString> status;
+    Field<Core::Snowflake, true> guildId;
+
+    static PresenceUpdate fromJson(const QJsonObject &obj)
+    {
+        PresenceUpdate ev;
+        if (obj.contains("user") && obj["user"].isObject()) {
+            const QJsonObject user = obj["user"].toObject();
+            ev.userId = Core::Snowflake(user.value("id").toString().toULongLong());
+        }
+        get(obj, "status", ev.status);
+        get(obj, "guild_id", ev.guildId);
+        return ev;
+    }
+};
+
 struct ChannelCreate : Core::JsonUtils::JsonObject
 {
     Field<Channel> channel;

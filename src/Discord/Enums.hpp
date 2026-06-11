@@ -156,6 +156,7 @@ enum class GatewayEvent {
     RELATIONSHIP_UPDATE,
     RELATIONSHIP_REMOVE,
     USER_NOTE_UPDATE,
+    PRESENCE_UPDATE,
 };
 
 enum class RelationshipType {
@@ -192,6 +193,7 @@ inline GatewayEvent parseGatewayEvent(const QString &event)
         { "MESSAGE_REACTION_REMOVE_EMOJI", GatewayEvent::MESSAGE_REACTION_REMOVE_EMOJI },
         { "USER_GUILD_SETTINGS_UPDATE", GatewayEvent::USER_GUILD_SETTINGS_UPDATE },
         { "GUILD_MEMBER_LIST_UPDATE", GatewayEvent::GUILD_MEMBER_LIST_UPDATE },
+        { "PRESENCE_UPDATE", GatewayEvent::PRESENCE_UPDATE },
         { "VOICE_STATE_UPDATE", GatewayEvent::VOICE_STATE_UPDATE },
         { "VOICE_STATE_UPDATE_BATCH", GatewayEvent::VOICE_STATE_UPDATE_BATCH },
         { "VOICE_SERVER_UPDATE", GatewayEvent::VOICE_SERVER_UPDATE },

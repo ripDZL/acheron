@@ -212,6 +212,9 @@ void Gateway::handleDispatch(const Inbound &data)
     case GatewayEvent::GUILD_MEMBER_UPDATE:
         handleGuildMemberUpdate(data);
         break;
+    case GatewayEvent::PRESENCE_UPDATE:
+        handlePresenceUpdate(data);
+        break;
     case GatewayEvent::GUILD_ROLE_CREATE:
         handleGuildRoleCreate(data);
         break;
@@ -360,6 +363,13 @@ void Gateway::handleGuildMemberUpdate(const Inbound &data)
     GuildMemberUpdate event = data.getData<GuildMemberUpdate>();
 
     emit gatewayGuildMemberUpdate(event);
+}
+
+void Gateway::handlePresenceUpdate(const Inbound &data)
+{
+    PresenceUpdate event = data.getData<PresenceUpdate>();
+
+    emit gatewayPresenceUpdate(event);
 }
 
 void Gateway::handleGuildRoleCreate(const Inbound &data)

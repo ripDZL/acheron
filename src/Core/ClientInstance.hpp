@@ -13,6 +13,7 @@ class QSqlDatabase;
 #include "Discord/Client.hpp"
 #include "MessageManager.hpp"
 #include "MemberListManager.hpp"
+#include "PresenceManager.hpp"
 #include "RelationshipManager.hpp"
 #include "UserManager.hpp"
 #include "PermissionManager.hpp"
@@ -46,6 +47,7 @@ public:
     [[nodiscard]] PermissionManager *permissions() const;
     [[nodiscard]] ReadStateManager *readState() const;
     [[nodiscard]] MemberListManager *memberList() const;
+    [[nodiscard]] PresenceManager *presences() const;
     [[nodiscard]] RelationshipManager *relationships() const;
 #ifndef ACHERON_NO_VOICE
     [[nodiscard]] AV::VoiceManager *voice() const;
@@ -95,6 +97,7 @@ private slots:
     void onGuildMembersChunk(const Discord::GuildMembersChunk &chunk);
     void onGuildMemberUpdate(const Discord::GuildMemberUpdate &event);
     void onGuildMemberListUpdate(const Discord::GuildMemberListUpdate &update);
+    void onPresenceUpdate(const Discord::PresenceUpdate &event);
     void onMessagesReceived(const MessageRequestResult &result);
     void onMessageCreated(const Discord::Message &msg);
     void handleAckRequest(Snowflake channelId, Snowflake messageId);
@@ -112,6 +115,7 @@ private:
     PermissionManager *permissionManager;
     ReadStateManager *readStateManager;
     MemberListManager *memberListManager;
+    PresenceManager *presenceManager;
     RelationshipManager *relationshipManager;
 #ifndef ACHERON_NO_VOICE
     AV::VoiceManager *voiceManager;

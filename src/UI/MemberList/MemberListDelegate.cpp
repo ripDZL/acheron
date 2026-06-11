@@ -5,6 +5,7 @@
 
 #include "MemberListModel.hpp"
 #include "Core/MemberListManager.hpp"
+#include "Core/Presence.hpp"
 
 constexpr static int GroupHeight = 22;
 constexpr static int MemberHeight = 28;
@@ -114,6 +115,22 @@ void MemberListDelegate::paintMember(QPainter *painter, const QStyleOptionViewIt
         painter->setBrush(defaultBg);
         painter->setPen(Qt::NoPen);
         painter->drawRoundedRect(avatarRect, AvatarRadius, AvatarRadius);
+    }
+
+    // Presence status dot, overlapping the avatar's bottom-right corner.
+    auto status = static_cast<Core::PresenceStatus>(index.data(MemberListModel::StatusRole).toInt());
+    QColor dotColor = Core::presenceDotColor(status);
+    if (dotColor.isValid()) {
+        constexpr qreal DotRadius = 3.5;
+        constexpr qreal RingWidth = 2.0;
+        QPointF dotCenter(avatarRect.right() - DotRadius + 1.0, avatarRect.bottom() - DotRadius + 1.0);
+        painter->save();
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(option.palette.color(QPalette::Base));
+        painter->drawEllipse(dotCenter, DotRadius + RingWidth, DotRadius + RingWidth);
+        painter->setBrush(dotColor);
+        painter->drawEllipse(dotCenter, DotRadius, DotRadius);
+        painter->restore();
     }
 
     x += AvatarSize + AvatarTextSpacing;

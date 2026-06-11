@@ -386,12 +386,16 @@ void MainWindow::switchActiveInstance(Core::ClientInstance *newInstance)
         disconnect(currentInstance->permissions(), nullptr, this, nullptr);
         disconnect(currentInstance, &Core::ClientInstance::membersUpdated, this, nullptr);
         disconnect(memberListView, nullptr, currentInstance->memberList(), nullptr);
+        disconnect(currentInstance->presences(), nullptr, this, nullptr);
     }
 
     currentInstance = newInstance;
     auto *msgs = currentInstance->messages();
 
     memberListModel->setManager(currentInstance->memberList());
+    memberListModel->setPresenceManager(currentInstance->presences());
+    connect(currentInstance->presences(), &Core::PresenceManager::presenceChanged, this,
+            [this]() { memberListView->viewport()->update(); });
     connect(memberListView, &MemberListView::visibleRangeChanged,
             currentInstance->memberList(), &Core::MemberListManager::updateSubscriptionRange);
 

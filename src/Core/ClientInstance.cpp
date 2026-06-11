@@ -46,6 +46,7 @@ ClientInstance::ClientInstance(const AccountInfo &info,
     readStateManager = new ReadStateManager(info.id, permissionManager, this);
     memberListManager = new MemberListManager(channelRepo, roleRepo, this);
     relationshipManager = new RelationshipManager(this);
+    presenceManager = new PresenceManager(this);
 #ifndef ACHERON_NO_VOICE
     voiceManager = new AV::VoiceManager(info.id, this);
 #endif
@@ -231,6 +232,7 @@ ClientInstance::ClientInstance(const AccountInfo &info,
             &MemberListManager::handleMemberListUpdate);
     connect(client, &Discord::Client::guildMemberListUpdate, this,
             &ClientInstance::onGuildMemberListUpdate);
+    connect(client, &Discord::Client::presenceUpdate, this, &ClientInstance::onPresenceUpdate);
     connect(memberListManager, &MemberListManager::subscriptionRequested, client,
             &Discord::Client::subscribeToGuildChannel);
     connect(messageManager, &MessageManager::messagesReceived, this,
@@ -542,6 +544,8 @@ void ClientInstance::onGuildMemberListUpdate(const Discord::GuildMemberListUpdat
             return;
         users.append(member.user.get());
         members.append(member);
+        if (member.presenceStatus.hasValue())
+            presenceManager->update(member.user->id.get(), member.presenceStatus.get());
     };
 
     for (const auto &op : update.ops.get()) {
@@ -719,6 +723,18 @@ RelationshipManager *ClientInstance::relationships() const
 MemberListManager *ClientInstance::memberList() const
 {
     return memberListManager;
+}
+
+PresenceManager *ClientInstance::presences() const
+{
+    return presenceManager;
+}
+
+void ClientInstance::onPresenceUpdate(const Discord::PresenceUpdate &event)
+{
+    if (!event.userId.hasValue() || !event.status.hasValue())
+        return;
+    presenceManager->update(event.userId.get(), event.status.get());
 }
 
 #ifndef ACHERON_NO_VOICE

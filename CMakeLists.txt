@@ -101,6 +101,7 @@ set(PROJECT_SOURCES
     src/Core/PermissionComputer.cpp
     src/Core/ReadStateManager.cpp
     src/Core/MemberListManager.cpp
+    src/Core/PresenceManager.cpp
     src/Core/RelationshipManager.cpp
     src/Core/MurmurHash3.cpp
     src/Core/EmojiSegmenter.cpp

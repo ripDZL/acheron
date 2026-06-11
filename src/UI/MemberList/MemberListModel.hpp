@@ -3,6 +3,7 @@
 #include <QAbstractListModel>
 
 #include "Core/MemberListManager.hpp"
+#include "Core/PresenceManager.hpp"
 #include "Core/ImageManager.hpp"
 
 namespace Acheron {
@@ -22,16 +23,19 @@ public:
         GroupCountRole,
         GroupColorRole,
         LoadedRole,
+        StatusRole,
     };
 
     explicit MemberListModel(Core::ImageManager *imageManager, QObject *parent = nullptr);
 
     void setManager(Core::MemberListManager *manager);
+    void setPresenceManager(Core::PresenceManager *presences);
 
     [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     [[nodiscard]] QVariant data(const QModelIndex &index, int role) const override;
 
 private:
+    Core::PresenceManager *presenceManager = nullptr;
     void onListAboutToReset();
     void onListReset();
     void onImageFetched(const QUrl &url, const QSize &size, const QPixmap &pixmap);

@@ -114,6 +114,7 @@ signals:
     void messageReactionRemoveEmoji(const MessageReactionRemoveEmoji &event);
     void userGuildSettingsUpdated(const UserGuildSettings &settings);
     void guildMemberListUpdate(const GuildMemberListUpdate &event);
+    void presenceUpdate(const PresenceUpdate &event);
     void voiceStateUpdated(const VoiceState &event);
     void voiceServerUpdated(const VoiceServerUpdate &event);
     void relationshipAdded(const Relationship &event);
