@@ -1,3 +1,4 @@
+#include <QDebug>
 #include "VoiceWindow.hpp"
 
 #include "Core/AV/VoiceManager.hpp"
@@ -923,12 +924,15 @@ void VoiceWindow::refreshDevices()
         return;
 
     auto populateCombo = [](QComboBox *combo, const QList<Core::AV::AudioDeviceInfo> &devices,
-                            const QByteArray &currentId, const QString &currentName) {
+                            const QByteArray &currentId, const QString &currentName, const char *which) {
         combo->blockSignals(true);
         combo->clear();
         int selectedIndex = 0;
+        bool matched = false;
+        QStringList avail;
         for (int i = 0; i < devices.size(); i++) {
             const auto &dev = devices[i];
+            avail << dev.description;
             QString label = dev.description;
             if (dev.isDefault)
                 label += QObject::tr(" (Default)");
@@ -937,22 +941,28 @@ void VoiceWindow::refreshDevices()
             // ma_device_id bytes are not stable across backend instances (the
             // Settings tab enumerates with a different backend than voice), so an
             // exact id comparison can miss even though the device is the same.
-            if (!currentId.isEmpty() && dev.id == currentId)
+            if (!currentId.isEmpty() && dev.id == currentId) {
                 selectedIndex = i;
-            else if (!currentName.isEmpty() && dev.description == currentName)
+                matched = true;
+            } else if (!currentName.isEmpty() && dev.description == currentName) {
                 selectedIndex = i;
-            else if (currentId.isEmpty() && currentName.isEmpty() && dev.isDefault)
+                matched = true;
+            } else if (currentId.isEmpty() && currentName.isEmpty() && dev.isDefault) {
                 selectedIndex = i;
+            }
         }
         combo->setCurrentIndex(selectedIndex);
         combo->blockSignals(false);
+        qInfo().noquote() << "Panel populate" << which << "want=[" << currentName << "] matched=" << matched
+                          << "selected=[" << (selectedIndex < devices.size() ? devices[selectedIndex].description : QString()) << "]"
+                          << "available=[" << avail.join(" | ") << "]";
     };
 
     auto &devPrefs = Core::AV::AudioDevicePrefs::instance();
     populateCombo(inputDeviceCombo, voiceManager->availableInputDevices(), voiceManager->currentInputDevice(),
-                  devPrefs.inputName());
+                  devPrefs.inputName(), "input");
     populateCombo(outputDeviceCombo, voiceManager->availableOutputDevices(), voiceManager->currentOutputDevice(),
-                  devPrefs.outputName());
+                  devPrefs.outputName(), "output");
 }
 
 void VoiceWindow::disconnectManager()
