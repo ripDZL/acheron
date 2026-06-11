@@ -551,19 +551,37 @@ void ClientInstance::onGuildMemberListUpdate(const Discord::GuildMemberListUpdat
             return;
         users.append(member.user.get());
         members.append(member);
-        if (member.presenceStatus.hasValue())
-            presenceManager->update(member.user->id.get(), member.presenceStatus.get());
+    };
+
+    // Feed presence: use the member's own status when present, otherwise infer
+    // Offline for members the server placed in the "offline" group (those items
+    // carry no presence object, which is why they'd otherwise show no dot).
+    auto feedPresence = [&](const Discord::Member &member, const QString &groupId) {
+        if (!member.user.hasValue() || !member.user->id.hasValue())
+            return;
+        const Snowflake uid = member.user->id.get();
+        if (member.presenceStatus.hasValue() && !member.presenceStatus.get().isEmpty())
+            presenceManager->update(uid, member.presenceStatus.get());
+        else if (groupId == QStringLiteral("offline"))
+            presenceManager->update(uid, Core::PresenceStatus::Offline);
     };
 
     for (const auto &op : update.ops.get()) {
+        QString currentGroup;
         if (op.items.hasValue()) {
             for (const auto &item : op.items.get()) {
-                if (item.member.hasValue())
+                if (item.group.hasValue() && item.group->id.hasValue())
+                    currentGroup = item.group->id.get();
+                if (item.member.hasValue()) {
                     persist(item.member.get());
+                    feedPresence(item.member.get(), currentGroup);
+                }
             }
         }
-        if (op.item.hasValue() && op.item.get().member.hasValue())
+        if (op.item.hasValue() && op.item.get().member.hasValue()) {
             persist(op.item.get().member.get());
+            feedPresence(op.item.get().member.get(), QString());
+        }
     }
 
     if (!users.isEmpty())

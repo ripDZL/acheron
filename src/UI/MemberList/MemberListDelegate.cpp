@@ -97,6 +97,25 @@ void MemberListDelegate::paintMember(QPainter *painter, const QStyleOptionViewIt
     int x = option.rect.left() + HorizontalPadding;
     int centerY = option.rect.top() + (option.rect.height() - AvatarSize) / 2;
 
+    // Presence status dot to the LEFT of the avatar (reserves a fixed column so
+    // members stay aligned whether or not a status is known).
+    {
+        constexpr int StatusColumn = 14;
+        constexpr qreal DotRadius = 3.5;
+        auto status = static_cast<Core::PresenceStatus>(index.data(MemberListModel::StatusRole).toInt());
+        QColor dotColor = Core::presenceDotColor(status);
+        if (dotColor.isValid()) {
+            QPointF c(x + DotRadius, option.rect.center().y() + 0.5);
+            painter->save();
+            painter->setRenderHint(QPainter::Antialiasing, true);
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(dotColor);
+            painter->drawEllipse(c, DotRadius, DotRadius);
+            painter->restore();
+        }
+        x += StatusColumn;
+    }
+
     QPixmap avatar = index.data(MemberListModel::AvatarRole).value<QPixmap>();
     QRect avatarRect(x, centerY, AvatarSize, AvatarSize);
 
@@ -115,22 +134,6 @@ void MemberListDelegate::paintMember(QPainter *painter, const QStyleOptionViewIt
         painter->setBrush(defaultBg);
         painter->setPen(Qt::NoPen);
         painter->drawRoundedRect(avatarRect, AvatarRadius, AvatarRadius);
-    }
-
-    // Presence status dot, overlapping the avatar's bottom-right corner.
-    auto status = static_cast<Core::PresenceStatus>(index.data(MemberListModel::StatusRole).toInt());
-    QColor dotColor = Core::presenceDotColor(status);
-    if (dotColor.isValid()) {
-        constexpr qreal DotRadius = 3.5;
-        constexpr qreal RingWidth = 2.0;
-        QPointF dotCenter(avatarRect.right() - DotRadius + 1.0, avatarRect.bottom() - DotRadius + 1.0);
-        painter->save();
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(option.palette.color(QPalette::Base));
-        painter->drawEllipse(dotCenter, DotRadius + RingWidth, DotRadius + RingWidth);
-        painter->setBrush(dotColor);
-        painter->drawEllipse(dotCenter, DotRadius, DotRadius);
-        painter->restore();
     }
 
     x += AvatarSize + AvatarTextSpacing;

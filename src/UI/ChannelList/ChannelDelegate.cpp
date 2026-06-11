@@ -403,15 +403,15 @@ void ChannelDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
             node->dmRecipientId.isValid()) {
             QColor dotColor = Core::presenceDotColor(presenceManager->statusOf(node->dmRecipientId));
             if (dotColor.isValid()) {
-                const qreal dotRadius = qMax(3.0, iconRect.width() / 6.0);
-                const qreal ringWidth = qMax(1.5, dotRadius * 0.55);
-                QPointF dotCenter(iconRect.right() - dotRadius + 1.0,
-                                  iconRect.bottom() - dotRadius + 1.0);
+                constexpr qreal dotRadius = 3.0;
+                qreal cx = iconRect.left() - dotRadius - 1.0;
+                cx = qMax<qreal>(option.rect.left() + dotRadius, cx);
+                QPointF dotCenter(cx, iconRect.center().y());
                 painter->save();
                 painter->setRenderHint(QPainter::Antialiasing, true);
                 painter->setPen(Qt::NoPen);
                 painter->setBrush(option.palette.color(QPalette::Base));
-                painter->drawEllipse(dotCenter, dotRadius + ringWidth, dotRadius + ringWidth);
+                painter->drawEllipse(dotCenter, dotRadius + 1.5, dotRadius + 1.5);
                 painter->setBrush(dotColor);
                 painter->drawEllipse(dotCenter, dotRadius, dotRadius);
                 painter->restore();
