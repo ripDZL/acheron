@@ -927,8 +927,7 @@ void VoiceWindow::refreshDevices()
                             const QByteArray &currentId, const QString &currentName, const char *which) {
         combo->blockSignals(true);
         combo->clear();
-        int selectedIndex = 0;
-        bool matched = false;
+        int nameIdx = -1, idIdx = -1, defaultIdx = -1;
         QStringList avail;
         for (int i = 0; i < devices.size(); i++) {
             const auto &dev = devices[i];
@@ -937,25 +936,23 @@ void VoiceWindow::refreshDevices()
             if (dev.isDefault)
                 label += QObject::tr(" (Default)");
             combo->addItem(label, dev.id);
-            // Match by id first; fall back to the device name, because the raw
-            // ma_device_id bytes are not stable across backend instances (the
-            // Settings tab enumerates with a different backend than voice), so an
-            // exact id comparison can miss even though the device is the same.
-            if (!currentId.isEmpty() && dev.id == currentId) {
-                selectedIndex = i;
-                matched = true;
-            } else if (!currentName.isEmpty() && dev.description == currentName) {
-                selectedIndex = i;
-                matched = true;
-            } else if (currentId.isEmpty() && currentName.isEmpty() && dev.isDefault) {
-                selectedIndex = i;
-            }
+            // The stored device NAME is the authoritative user selection and is
+            // stable across backend instances; the raw ma_device_id bytes are not
+            // (the Settings tab enumerates with a different backend than voice) and
+            // can also be stale, so name wins and id is only a fallback.
+            if (!currentName.isEmpty() && dev.description == currentName)
+                nameIdx = i;
+            if (idIdx < 0 && !currentId.isEmpty() && dev.id == currentId)
+                idIdx = i;
+            if (defaultIdx < 0 && dev.isDefault)
+                defaultIdx = i;
         }
+        int selectedIndex = nameIdx >= 0 ? nameIdx : (idIdx >= 0 ? idIdx : (defaultIdx >= 0 ? defaultIdx : 0));
         combo->setCurrentIndex(selectedIndex);
         combo->blockSignals(false);
-        qInfo().noquote() << "Panel populate" << which << "want=[" << currentName << "] matched=" << matched
-                          << "selected=[" << (selectedIndex < devices.size() ? devices[selectedIndex].description : QString()) << "]"
-                          << "available=[" << avail.join(" | ") << "]";
+        qInfo().noquote() << "Panel populate" << which << "want=[" << currentName << "] nameIdx=" << nameIdx
+                          << "idIdx=" << idIdx << "selected=["
+                          << (selectedIndex < devices.size() ? devices[selectedIndex].description : QString()) << "]";
     };
 
     auto &devPrefs = Core::AV::AudioDevicePrefs::instance();
