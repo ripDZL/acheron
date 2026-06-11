@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QByteArray>
+#include <QDebug>
+#include <QLoggingCategory>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QSettings>
@@ -34,6 +36,7 @@ public:
         ensureLoaded();
         m_inputId = id;
         m_inputName = name;
+        qInfo().noquote() << "AudioDevicePrefs::setInput name=" << name << "idBytes=" << id.size();
         QSettings s;
         s.setValue(QStringLiteral("voice/input_device"), id);
         s.setValue(QStringLiteral("voice/input_device_name"), name);
@@ -45,6 +48,7 @@ public:
         ensureLoaded();
         m_outputId = id;
         m_outputName = name;
+        qInfo().noquote() << "AudioDevicePrefs::setOutput name=" << name << "idBytes=" << id.size();
         QSettings s;
         s.setValue(QStringLiteral("voice/output_device"), id);
         s.setValue(QStringLiteral("voice/output_device_name"), name);
