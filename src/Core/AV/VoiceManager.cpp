@@ -1,5 +1,6 @@
 #include "VoiceManager.hpp"
 #include <QSettings>
+#include "Core/AV/AudioDevicePrefs.hpp"
 #include "AudioPipeline.hpp"
 
 #include "Core/Logging.hpp"
@@ -657,13 +658,12 @@ void VoiceManager::onVoiceClientConnected()
     qCInfo(LogVoice) << "Voice connection established for channel" << channelId;
 
     bool capturing = !selfMute && !selfDeaf;
-    // Read the persisted audio prefs fresh at connect time (the Settings > Audio
-    // tab and Voice panel write these). sync() forces a reload from disk so a
-    // change made earlier this session isn't served stale from QSettings' cache.
+    // Devices come from the in-memory prefs store (race-free, immediately
+    // reflects a Settings/panel change this session). mix_mono still via settings.
     QSettings audioSettings;
     audioSettings.sync();
-    QByteArray inputId = audioSettings.value("voice/input_device", currentInputDeviceId).toByteArray();
-    QByteArray outputId = audioSettings.value("voice/output_device", currentOutputDeviceId).toByteArray();
+    QByteArray inputId = AudioDevicePrefs::instance().inputId();
+    QByteArray outputId = AudioDevicePrefs::instance().outputId();
     currentInputDeviceId = inputId;
     currentOutputDeviceId = outputId;
     qCInfo(LogVoice) << "Voice connect: applying input device" << (inputId.isEmpty() ? "<system default>" : "<selected>")

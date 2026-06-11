@@ -6,6 +6,7 @@
 #include "UI/TabBar/TabBar.hpp"
 #include "Core/ImageManager.hpp"
 #include "Core/UserManager.hpp"
+#include "Core/AV/AudioDevicePrefs.hpp"
 #ifndef ACHERON_NO_VOICE
 #include "Core/AV/IAudioBackend.hpp"
 #endif
@@ -296,12 +297,11 @@ void SettingsWindow::populateAudioDevices()
     // window) instead of spinning a fresh audio context up and down on each call.
     if (!enumBackend)
         enumBackend = Core::AV::IAudioBackend::create(this).release();
-    QSettings s;
-    s.sync();
-    const QByteArray savedIn = s.value("voice/input_device").toByteArray();
-    const QByteArray savedOut = s.value("voice/output_device").toByteArray();
-    const QString savedInName = s.value("voice/input_device_name").toString();
-    const QString savedOutName = s.value("voice/output_device_name").toString();
+    auto &prefs = Core::AV::AudioDevicePrefs::instance();
+    const QByteArray savedIn = prefs.inputId();
+    const QByteArray savedOut = prefs.outputId();
+    const QString savedInName = prefs.inputName();
+    const QString savedOutName = prefs.outputName();
 
     auto fill = [](QComboBox *combo, const QList<Core::AV::AudioDeviceInfo> &devs,
                    const QByteArray &sel, const QString &selName, const QString &defaultLabel) {
@@ -403,16 +403,12 @@ void SettingsWindow::buildAudioPage()
 
     // --- Handlers (write QSettings; these keys are the shared source of truth) ---
     connect(audioInputCombo, &QComboBox::activated, this, [this](int i) {
-        QSettings s;
-        s.setValue("voice/input_device", audioInputCombo->itemData(i).toByteArray());
-        s.setValue("voice/input_device_name", audioInputCombo->itemText(i));
-        s.sync();
+        Core::AV::AudioDevicePrefs::instance().setInput(audioInputCombo->itemData(i).toByteArray(),
+                                                        audioInputCombo->itemText(i));
     });
     connect(audioOutputCombo, &QComboBox::activated, this, [this](int i) {
-        QSettings s;
-        s.setValue("voice/output_device", audioOutputCombo->itemData(i).toByteArray());
-        s.setValue("voice/output_device_name", audioOutputCombo->itemText(i));
-        s.sync();
+        Core::AV::AudioDevicePrefs::instance().setOutput(audioOutputCombo->itemData(i).toByteArray(),
+                                                         audioOutputCombo->itemText(i));
     });
     connect(inputChannelsCombo, &QComboBox::currentIndexChanged, this, [this](int i) {
         QSettings().setValue("voice/mix_mono", i == 1);

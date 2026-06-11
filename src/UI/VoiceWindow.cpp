@@ -1,6 +1,7 @@
 #include "VoiceWindow.hpp"
 
 #include "Core/AV/VoiceManager.hpp"
+#include "Core/AV/AudioDevicePrefs.hpp"
 #include "Core/ImageManager.hpp"
 #include "Core/Logging.hpp"
 
@@ -624,9 +625,7 @@ void VoiceWindow::setupUi()
         voiceManager->setInputDevice(deviceId);
         QString name = inputDeviceCombo->itemText(index);
         name.remove(QObject::tr(" (Default)"));
-        QSettings s;
-        s.setValue("voice/input_device", deviceId);
-        s.setValue("voice/input_device_name", name);
+        Core::AV::AudioDevicePrefs::instance().setInput(deviceId, name);
     });
 
     connect(outputDeviceCombo, &QComboBox::activated, this, [this](int index) {
@@ -636,9 +635,7 @@ void VoiceWindow::setupUi()
         voiceManager->setOutputDevice(deviceId);
         QString name = outputDeviceCombo->itemText(index);
         name.remove(QObject::tr(" (Default)"));
-        QSettings s;
-        s.setValue("voice/output_device", deviceId);
-        s.setValue("voice/output_device_name", name);
+        Core::AV::AudioDevicePrefs::instance().setOutput(deviceId, name);
     });
 
     buildAdvancedSection(layout);
@@ -951,12 +948,11 @@ void VoiceWindow::refreshDevices()
         combo->blockSignals(false);
     };
 
-    QSettings devSettings;
-    devSettings.sync(); // ensure a Settings-tab change this session is read fresh, not cached
+    auto &devPrefs = Core::AV::AudioDevicePrefs::instance();
     populateCombo(inputDeviceCombo, voiceManager->availableInputDevices(), voiceManager->currentInputDevice(),
-                  devSettings.value("voice/input_device_name").toString());
+                  devPrefs.inputName());
     populateCombo(outputDeviceCombo, voiceManager->availableOutputDevices(), voiceManager->currentOutputDevice(),
-                  devSettings.value("voice/output_device_name").toString());
+                  devPrefs.outputName());
 }
 
 void VoiceWindow::disconnectManager()
