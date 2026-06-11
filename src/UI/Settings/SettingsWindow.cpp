@@ -292,9 +292,10 @@ void SettingsWindow::populateAudioDevices()
         return;
 
 #ifndef ACHERON_NO_VOICE
-    // A standalone backend can enumerate devices without a live voice connection
-    // (enumeration only needs the audio context, not an open capture stream).
-    auto backend = Core::AV::IAudioBackend::create();
+    // Create the enumeration backend once and keep it alive (parented to this
+    // window) instead of spinning a fresh audio context up and down on each call.
+    if (!enumBackend)
+        enumBackend = Core::AV::IAudioBackend::create(this).release();
     QSettings s;
     const QByteArray savedIn = s.value("voice/input_device").toByteArray();
     const QByteArray savedOut = s.value("voice/output_device").toByteArray();
@@ -312,8 +313,8 @@ void SettingsWindow::populateAudioDevices()
         }
         combo->setCurrentIndex(selIdx);
     };
-    fill(audioInputCombo, backend->availableInputDevices(), savedIn, tr("System Default"));
-    fill(audioOutputCombo, backend->availableOutputDevices(), savedOut, tr("System Default"));
+    fill(audioInputCombo, enumBackend->availableInputDevices(), savedIn, tr("System Default"));
+    fill(audioOutputCombo, enumBackend->availableOutputDevices(), savedOut, tr("System Default"));
 #else
     for (QComboBox *c : {audioInputCombo, audioOutputCombo}) {
         QSignalBlocker block(c);

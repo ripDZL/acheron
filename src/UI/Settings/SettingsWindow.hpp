@@ -3,6 +3,7 @@
 #include <QtWidgets>
 
 namespace Acheron {
+namespace Core { namespace AV { class IAudioBackend; } }
 namespace UI {
 
 class SettingsWindow : public QWidget
@@ -52,6 +53,10 @@ private:
     QComboBox *micModeCombo = nullptr;
     QKeySequenceEdit *pttHotkeyEdit = nullptr;
     QPushButton *pttHotkeyClear = nullptr;
+    // Long-lived backend used only to enumerate audio devices. Kept alive for the
+    // window's lifetime so we don't repeatedly create/destroy an audio context
+    // (which can disturb Windows audio state for a subsequent voice connection).
+    Core::AV::IAudioBackend *enumBackend = nullptr;
     void populateAudioDevices();
 };
 

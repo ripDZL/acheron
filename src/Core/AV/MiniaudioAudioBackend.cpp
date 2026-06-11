@@ -215,8 +215,12 @@ bool MiniaudioAudioBackend::startCapture()
     config.periodSizeInFrames = AUDIO_FRAME_SAMPLES;
 
     ma_device_id deviceId;
-    if (!selectedInputId.isEmpty() && DeserializeDeviceId(selectedInputId, deviceId))
+    const bool explicitInput = !selectedInputId.isEmpty();
+    const bool inputDeserializeOk = explicitInput && DeserializeDeviceId(selectedInputId, deviceId);
+    if (inputDeserializeOk)
         config.capture.pDeviceID = &deviceId;
+    qCInfo(LogVoice) << "Capture open: explicitId" << explicitInput
+                     << "deserializeOk" << inputDeserializeOk << "idBytes" << selectedInputId.size();
 
     if (ma_device_init(&ma->context, &config, &ma->captureDevice) != MA_SUCCESS) {
         qCWarning(LogVoice) << "Failed to init miniaudio capture device";
@@ -273,8 +277,12 @@ bool MiniaudioAudioBackend::startPlayback()
     config.periodSizeInFrames = AUDIO_FRAME_SAMPLES;
 
     ma_device_id deviceId;
-    if (!selectedOutputId.isEmpty() && DeserializeDeviceId(selectedOutputId, deviceId))
+    const bool explicitOutput = !selectedOutputId.isEmpty();
+    const bool outputDeserializeOk = explicitOutput && DeserializeDeviceId(selectedOutputId, deviceId);
+    if (outputDeserializeOk)
         config.playback.pDeviceID = &deviceId;
+    qCInfo(LogVoice) << "Playback open: explicitId" << explicitOutput
+                     << "deserializeOk" << outputDeserializeOk << "idBytes" << selectedOutputId.size();
 
     if (ma_device_init(&ma->context, &config, &ma->playbackDevice) != MA_SUCCESS) {
         qCWarning(LogVoice) << "Failed to init miniaudio playback device";
