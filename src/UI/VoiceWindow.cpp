@@ -1,4 +1,3 @@
-#include <QDebug>
 #include "VoiceWindow.hpp"
 
 #include "Core/AV/VoiceManager.hpp"
