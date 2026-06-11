@@ -20,6 +20,7 @@ struct TypingStart;
 namespace UI {
 class ChatView;
 class ChatModel;
+class ChatDelegate;
 class ChannelTreeModel;
 class ChannelFilterProxyModel;
 class AccountsWindow;
@@ -79,6 +80,7 @@ private:
 
     ChatView *chatView;
     ChatModel *chatModel;
+    ChatDelegate *chatDelegate = nullptr;
 
     ChannelTreeView *channelTree;
     ChannelTreeModel *channelTreeModel;

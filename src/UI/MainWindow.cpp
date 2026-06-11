@@ -394,8 +394,12 @@ void MainWindow::switchActiveInstance(Core::ClientInstance *newInstance)
 
     memberListModel->setManager(currentInstance->memberList());
     memberListModel->setPresenceManager(currentInstance->presences());
+    chatDelegate->setPresenceManager(currentInstance->presences());
     connect(currentInstance->presences(), &Core::PresenceManager::presenceChanged, this,
-            [this]() { memberListView->viewport()->update(); });
+            [this]() {
+                memberListView->viewport()->update();
+                chatView->viewport()->update();
+            });
     connect(memberListView, &MemberListView::visibleRangeChanged,
             currentInstance->memberList(), &Core::MemberListManager::updateSubscriptionRange);
 
@@ -769,7 +773,8 @@ void MainWindow::setupUi()
             });
 
     chatView->setModel(chatModel);
-    chatView->setItemDelegate(new ChatDelegate(session->getImageManager(), chatView));
+    chatDelegate = new ChatDelegate(session->getImageManager(), chatView);
+    chatView->setItemDelegate(chatDelegate);
     chatView->setIconSize(QSize(24, 24));
     chatView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     chatView->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);

@@ -5,6 +5,7 @@
 namespace Acheron {
 namespace Core {
 class ImageManager;
+class PresenceManager;
 }
 namespace UI {
 class ChatDelegate : public QStyledItemDelegate
@@ -16,12 +17,15 @@ public:
     {
     }
 
+    void setPresenceManager(Core::PresenceManager *presences) { presenceManager = presences; }
+
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
                const QModelIndex &index) const override;
     QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 
 private:
     Core::ImageManager *imageManager;
+    Core::PresenceManager *presenceManager = nullptr;
 };
 } // namespace UI
 } // namespace Acheron

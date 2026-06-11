@@ -4,6 +4,8 @@
 #include "ChatLayout.hpp"
 #include "ChatView.hpp"
 #include "Core/ImageManager.hpp"
+#include "Core/Presence.hpp"
+#include "Core/PresenceManager.hpp"
 #include "Core/Theme/Manager.hpp"
 
 #include <algorithm>
@@ -190,6 +192,26 @@ void ChatDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
     if (layout.showHeader) {
         if (!avatar.isNull())
             painter->drawPixmap(layout.avatarRect, avatar);
+
+        if (presenceManager) {
+            auto status = presenceManager->statusOf(
+                    Core::Snowflake(index.data(ChatModel::UserIdRole).toULongLong()));
+            QColor dotColor = Core::presenceDotColor(status);
+            if (dotColor.isValid()) {
+                const qreal dotRadius = qMax(3.0, layout.avatarRect.width() / 6.0);
+                const qreal ringWidth = qMax(1.5, dotRadius * 0.55);
+                QPointF dotCenter(layout.avatarRect.right() - dotRadius + 1.0,
+                                  layout.avatarRect.bottom() - dotRadius + 1.0);
+                painter->save();
+                painter->setRenderHint(QPainter::Antialiasing, true);
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(option.palette.color(QPalette::Base));
+                painter->drawEllipse(dotCenter, dotRadius + ringWidth, dotRadius + ringWidth);
+                painter->setBrush(dotColor);
+                painter->drawEllipse(dotCenter, dotRadius, dotRadius);
+                painter->restore();
+            }
+        }
 
         QFont headerFont = option.font;
         headerFont.setBold(true);
