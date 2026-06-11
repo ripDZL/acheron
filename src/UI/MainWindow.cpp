@@ -165,6 +165,7 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
         if (!blob.isEmpty()) {
             tabBar->restoreSession(blob);
             pendingTabActivation = true;
+            restoredSessionPendingFirstNav = true;
         }
     }
 }
@@ -364,7 +365,12 @@ void MainWindow::onChannelSelectionChanged(const QModelIndex &current, const QMo
         entry.isDm = (node->type == ChannelNode::Type::DMChannel);
         if (serverNode && !serverNode->TEMP_iconHash.isEmpty())
             entry.iconUrl = Discord::Cdn::guildIcon(serverNode->id, serverNode->TEMP_iconHash, 64);
-        tabBar->updateCurrentTab(entry);
+        if (restoredSessionPendingFirstNav) {
+            restoredSessionPendingFirstNav = false;
+            tabBar->openNewTab(entry);
+        } else {
+            tabBar->updateCurrentTab(entry);
+        }
         if (centralStack)
             centralStack->setCurrentIndex(0); // leave accounts view when a channel is opened
     }

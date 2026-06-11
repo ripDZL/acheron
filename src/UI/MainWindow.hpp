@@ -116,6 +116,9 @@ private:
     // Set when a previous session's tabs were restored at startup; the saved active
     // tab is activated once the account that owns it finishes connecting.
     bool pendingTabActivation = false;
+    // After a restore, the first sidebar navigation opens a new tab instead of
+    // navigating (and thus consuming) one of the restored tabs.
+    bool restoredSessionPendingFirstNav = false;
     QHash<Core::Snowflake, QColor> userColorCache; // current guild
 
     QSet<Core::Snowflake> instancesSignalsConnected;
