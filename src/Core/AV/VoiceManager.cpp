@@ -694,11 +694,15 @@ void VoiceManager::onVoiceClientConnected()
         p->setPttMode(pttMode);
         p->setMixMono(mixMono);
         p->setNoiseSuppress(noiseSuppress);
-        p->start(backend, capturing);
+        // Select devices on the backend BEFORE starting so capture/playback open
+        // directly on the chosen device. Previously start() opened the system
+        // default first and then switched, leaving a brief default-device open
+        // that virtual-audio setups (e.g. Voicemeeter) could latch onto.
         if (!inputId.isEmpty())
-            p->setInputDevice(inputId);
+            backend->setInputDevice(inputId);
         if (!outputId.isEmpty())
-            p->setOutputDevice(outputId);
+            backend->setOutputDevice(outputId);
+        p->start(backend, capturing);
     });
 
     populateParticipantsFromCache();
