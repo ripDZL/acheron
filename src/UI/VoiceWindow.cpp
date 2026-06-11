@@ -924,14 +924,12 @@ void VoiceWindow::refreshDevices()
         return;
 
     auto populateCombo = [](QComboBox *combo, const QList<Core::AV::AudioDeviceInfo> &devices,
-                            const QByteArray &currentId, const QString &currentName, const char *which) {
+                            const QByteArray &currentId, const QString &currentName) {
         combo->blockSignals(true);
         combo->clear();
         int nameIdx = -1, idIdx = -1, defaultIdx = -1;
-        QStringList avail;
         for (int i = 0; i < devices.size(); i++) {
             const auto &dev = devices[i];
-            avail << dev.description;
             QString label = dev.description;
             if (dev.isDefault)
                 label += QObject::tr(" (Default)");
@@ -950,16 +948,13 @@ void VoiceWindow::refreshDevices()
         int selectedIndex = nameIdx >= 0 ? nameIdx : (idIdx >= 0 ? idIdx : (defaultIdx >= 0 ? defaultIdx : 0));
         combo->setCurrentIndex(selectedIndex);
         combo->blockSignals(false);
-        qInfo().noquote() << "Panel populate" << which << "want=[" << currentName << "] nameIdx=" << nameIdx
-                          << "idIdx=" << idIdx << "selected=["
-                          << (selectedIndex < devices.size() ? devices[selectedIndex].description : QString()) << "]";
     };
 
     auto &devPrefs = Core::AV::AudioDevicePrefs::instance();
     populateCombo(inputDeviceCombo, voiceManager->availableInputDevices(), voiceManager->currentInputDevice(),
-                  devPrefs.inputName(), "input");
+                  devPrefs.inputName());
     populateCombo(outputDeviceCombo, voiceManager->availableOutputDevices(), voiceManager->currentOutputDevice(),
-                  devPrefs.outputName(), "output");
+                  devPrefs.outputName());
 }
 
 void VoiceWindow::disconnectManager()

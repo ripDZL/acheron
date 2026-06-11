@@ -219,8 +219,6 @@ bool MiniaudioAudioBackend::startCapture()
     const bool inputDeserializeOk = explicitInput && DeserializeDeviceId(selectedInputId, deviceId);
     if (inputDeserializeOk)
         config.capture.pDeviceID = &deviceId;
-    qCInfo(LogVoice) << "Capture open: explicitId" << explicitInput
-                     << "deserializeOk" << inputDeserializeOk << "idBytes" << selectedInputId.size();
 
     if (ma_device_init(&ma->context, &config, &ma->captureDevice) != MA_SUCCESS) {
         qCWarning(LogVoice) << "Failed to init miniaudio capture device";
@@ -281,8 +279,6 @@ bool MiniaudioAudioBackend::startPlayback()
     const bool outputDeserializeOk = explicitOutput && DeserializeDeviceId(selectedOutputId, deviceId);
     if (outputDeserializeOk)
         config.playback.pDeviceID = &deviceId;
-    qCInfo(LogVoice) << "Playback open: explicitId" << explicitOutput
-                     << "deserializeOk" << outputDeserializeOk << "idBytes" << selectedOutputId.size();
 
     if (ma_device_init(&ma->context, &config, &ma->playbackDevice) != MA_SUCCESS) {
         qCWarning(LogVoice) << "Failed to init miniaudio playback device";

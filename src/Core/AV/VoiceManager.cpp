@@ -666,9 +666,6 @@ void VoiceManager::onVoiceClientConnected()
     QByteArray outputId = AudioDevicePrefs::instance().outputId();
     currentInputDeviceId = inputId;
     currentOutputDeviceId = outputId;
-    qCInfo(LogVoice) << "Voice connect: applying input device" << (inputId.isEmpty() ? "<system default>" : "<selected>")
-                     << "output" << (outputId.isEmpty() ? "<system default>" : "<selected>")
-                     << "inBytes" << inputId.size() << "outBytes" << outputId.size();
     IAudioBackend *backend = audioBackend.get();
     int application = cachedOpusApplication;
     int bitrate = cachedOpusBitrate;
