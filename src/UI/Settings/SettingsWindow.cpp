@@ -297,6 +297,7 @@ void SettingsWindow::populateAudioDevices()
     if (!enumBackend)
         enumBackend = Core::AV::IAudioBackend::create(this).release();
     QSettings s;
+    s.sync();
     const QByteArray savedIn = s.value("voice/input_device").toByteArray();
     const QByteArray savedOut = s.value("voice/output_device").toByteArray();
     const QString savedInName = s.value("voice/input_device_name").toString();

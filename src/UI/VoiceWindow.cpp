@@ -952,6 +952,7 @@ void VoiceWindow::refreshDevices()
     };
 
     QSettings devSettings;
+    devSettings.sync(); // ensure a Settings-tab change this session is read fresh, not cached
     populateCombo(inputDeviceCombo, voiceManager->availableInputDevices(), voiceManager->currentInputDevice(),
                   devSettings.value("voice/input_device_name").toString());
     populateCombo(outputDeviceCombo, voiceManager->availableOutputDevices(), voiceManager->currentOutputDevice(),
