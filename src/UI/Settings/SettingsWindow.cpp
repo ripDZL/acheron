@@ -152,6 +152,15 @@ void SettingsWindow::buildGeneralPage()
         TabBar::setAvoidRedundantTabs(checked);
     });
 
+    restorePreviousTabsCheckbox = new QCheckBox(tr("Restore previous tabs on launch"), page);
+    restorePreviousTabsCheckbox->setToolTip(
+            tr("Reopen the tabs you had open when you last closed Acheron. Each tab becomes active "
+               "once its account finishes connecting."));
+    layout->addWidget(restorePreviousTabsCheckbox);
+    connect(restorePreviousTabsCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        TabBar::setRestorePreviousSession(checked);
+    });
+
     showAccountsOnLaunchCheckbox = new QCheckBox(tr("Always show the Accounts panel on launch"), page);
     layout->addWidget(showAccountsOnLaunchCheckbox);
     connect(showAccountsOnLaunchCheckbox, &QCheckBox::toggled, this, [](bool checked) {
@@ -449,6 +458,7 @@ void SettingsWindow::loadSettings()
     showCloseButtonCheckbox->setChecked(TabBar::showCloseButton());
     extraActiveHighlightCheckbox->setChecked(TabBar::extraActiveHighlight());
     avoidRedundantTabsCheckbox->setChecked(TabBar::avoidRedundantTabs());
+    restorePreviousTabsCheckbox->setChecked(TabBar::restorePreviousSession());
     showAccountsOnLaunchCheckbox->setChecked(settings.value("general/show_accounts_on_launch", false).toBool());
     showTrayIconCheckbox->setChecked(settings.value("tray/show_icon", true).toBool());
     closeToTrayCheckbox->setChecked(settings.value("tray/close_to_tray", true).toBool());

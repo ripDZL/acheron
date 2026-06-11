@@ -58,6 +58,7 @@ private slots:
 
 private:
     void switchActiveInstance(Core::ClientInstance *instance);
+    void saveTabSession();
     void setupPermanentConnections(Core::ClientInstance *instance);
     void switchToTabEntry(const TabEntry &entry);
     void activateChannel(const TabEntry &entry);
@@ -112,6 +113,9 @@ private:
     Core::ClientInstance *currentInstance = nullptr;
 
     Core::Snowflake cachedGuildId = Core::Snowflake::Invalid;
+    // Set when a previous session's tabs were restored at startup; the saved active
+    // tab is activated once the account that owns it finishes connecting.
+    bool pendingTabActivation = false;
     QHash<Core::Snowflake, QColor> userColorCache; // current guild
 
     QSet<Core::Snowflake> instancesSignalsConnected;

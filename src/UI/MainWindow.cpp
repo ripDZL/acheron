@@ -135,6 +135,16 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
                                 break;
                             }
                         }
+
+                        // If a restored session is waiting on this account, activate
+                        // its saved active tab now that the account is connected.
+                        if (pendingTabActivation && tabBar->tabCount() > 0) {
+                            const TabEntry &cur = tabBar->tabEntry(tabBar->currentIndex());
+                            if (cur.channelId.isValid() && cur.accountId == acc.id) {
+                                activateChannel(cur);
+                                pendingTabActivation = false;
+                            }
+                        }
                     } else if (acc.state == Acheron::Core::ConnectionState::Disconnected) {
                         channelTreeModel->removeAccount(acc.id);
                     }
@@ -144,6 +154,18 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
     for (const auto &instance : session->getClients()) {
         if (instance)
             setupPermanentConnections(instance);
+    }
+
+    // Persist tabs on any change, and restore the previous session's tabs now.
+    // Restored tabs draw immediately; the active one is activated once the
+    // account that owns it finishes connecting (see the accounts handler above).
+    connect(tabBar, &TabBar::tabsChanged, this, &MainWindow::saveTabSession);
+    if (TabBar::restorePreviousSession()) {
+        const QByteArray blob = QSettings().value("tabs/session").toByteArray();
+        if (!blob.isEmpty()) {
+            tabBar->restoreSession(blob);
+            pendingTabActivation = true;
+        }
     }
 }
 
@@ -198,7 +220,15 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
 
     event->accept();
+    saveTabSession();
     qApp->quit();
+}
+
+void MainWindow::saveTabSession()
+{
+    if (!TabBar::restorePreviousSession())
+        return;
+    QSettings().setValue("tabs/session", tabBar->serializeSession());
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *ev)

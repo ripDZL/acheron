@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QWidget>
+#include <QByteArray>
 #include <QHash>
 #include <QList>
 #include <QString>
@@ -52,10 +53,18 @@ public:
     bool canNavigateForward() const;
 
     int tabCount() const { return tabs.size(); }
+    int currentIndex() const { return currentTabIndex; }
     const TabEntry &tabEntry(int index) const { return tabs[index].current(); }
     QString activeTabName() const { return tabs.isEmpty() ? QString() : tabs[currentTabIndex].current().name; }
 
     void updateChannelReadState(Core::Snowflake channelId, bool unread, int mentionCount);
+
+    // Session persistence: serialize all tabs (full back/forward history) and the
+    // active tab index to an opaque blob, and rebuild from one. restoreSession does
+    // NOT require any Discord data to be loaded; it only redraws the bar and emits
+    // tabChanged for the active tab so the rest of the UI can sync.
+    QByteArray serializeSession() const;
+    void restoreSession(const QByteArray &data);
 
     // Tab behavior/appearance preferences (live, backed by QSettings)
     static bool showCloseButton();
@@ -64,9 +73,12 @@ public:
     static void setExtraActiveHighlight(bool on);
     static bool avoidRedundantTabs();
     static void setAvoidRedundantTabs(bool on);
+    static bool restorePreviousSession();
+    static void setRestorePreviousSession(bool on);
 
 signals:
     void tabChanged(const TabEntry &entry);
+    void tabsChanged();
 
 protected:
     void paintEvent(QPaintEvent *event) override;

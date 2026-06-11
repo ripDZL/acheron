@@ -33,6 +33,7 @@ private:
     QCheckBox *showCloseButtonCheckbox = nullptr;
     QCheckBox *extraActiveHighlightCheckbox = nullptr;
     QCheckBox *avoidRedundantTabsCheckbox = nullptr;
+    QCheckBox *restorePreviousTabsCheckbox = nullptr;
     QCheckBox *showTrayIconCheckbox = nullptr;
     QCheckBox *closeToTrayCheckbox = nullptr;
     QCheckBox *showAccountsOnLaunchCheckbox = nullptr;

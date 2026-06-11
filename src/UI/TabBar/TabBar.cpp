@@ -7,6 +7,7 @@
 #include <QFontMetrics>
 #include <QApplication>
 #include <QSettings>
+#include <QDataStream>
 #include <atomic>
 
 namespace Acheron {
@@ -16,6 +17,7 @@ namespace {
 std::atomic<int> g_showClose{-1};
 std::atomic<int> g_extraHighlight{-1};
 std::atomic<int> g_avoidRedundant{-1};
+std::atomic<int> g_restoreSession{-1};
 int loadFlag(std::atomic<int> &cache, const char *key, bool def)
 {
     int v = cache.load(std::memory_order_relaxed);
@@ -44,6 +46,100 @@ void TabBar::setAvoidRedundantTabs(bool on)
 {
     g_avoidRedundant.store(on ? 1 : 0, std::memory_order_relaxed);
     QSettings().setValue("tabs/avoid_redundant", on);
+}
+
+bool TabBar::restorePreviousSession() { return loadFlag(g_restoreSession, "tabs/restore_session", false) == 1; }
+void TabBar::setRestorePreviousSession(bool on)
+{
+    g_restoreSession.store(on ? 1 : 0, std::memory_order_relaxed);
+    QSettings settings;
+    settings.setValue("tabs/restore_session", on);
+    // When disabled, don't keep a stored session lying around on disk.
+    if (!on)
+        settings.remove("tabs/session");
+}
+
+namespace {
+constexpr quint32 kSessionFormatVersion = 1;
+}
+
+QByteArray TabBar::serializeSession() const
+{
+    QByteArray buf;
+    QDataStream ds(&buf, QIODevice::WriteOnly);
+    ds.setVersion(QDataStream::Qt_6_0);
+    ds << kSessionFormatVersion;
+    ds << static_cast<qint32>(currentTabIndex);
+    ds << static_cast<qint32>(tabs.size());
+    for (const Tab &tab : tabs) {
+        ds << static_cast<qint32>(tab.historyIndex);
+        ds << static_cast<qint32>(tab.history.size());
+        for (const TabEntry &e : tab.history) {
+            ds << static_cast<quint64>(e.channelId) << static_cast<quint64>(e.guildId)
+               << static_cast<quint64>(e.accountId) << e.name << e.iconUrl.toString() << e.isDm;
+        }
+    }
+    return buf;
+}
+
+void TabBar::restoreSession(const QByteArray &data)
+{
+    if (data.isEmpty())
+        return;
+
+    QDataStream ds(data);
+    ds.setVersion(QDataStream::Qt_6_0);
+
+    quint32 version = 0;
+    ds >> version;
+    if (version != kSessionFormatVersion)
+        return;
+
+    qint32 savedCurrent = 0;
+    qint32 tabCount = 0;
+    ds >> savedCurrent >> tabCount;
+    if (tabCount <= 0 || tabCount > 1000)
+        return;
+
+    QList<Tab> restored;
+    for (qint32 i = 0; i < tabCount; ++i) {
+        qint32 historyIndex = 0;
+        qint32 historyCount = 0;
+        ds >> historyIndex >> historyCount;
+        if (historyCount <= 0 || historyCount > 1000)
+            return;
+
+        Tab tab;
+        for (qint32 j = 0; j < historyCount; ++j) {
+            quint64 channelId = 0, guildId = 0, accountId = 0;
+            QString name, iconUrl;
+            bool isDm = false;
+            ds >> channelId >> guildId >> accountId >> name >> iconUrl >> isDm;
+
+            TabEntry e;
+            e.channelId = Core::Snowflake(channelId);
+            e.guildId = Core::Snowflake(guildId);
+            e.accountId = Core::Snowflake(accountId);
+            e.name = name;
+            e.iconUrl = QUrl(iconUrl);
+            e.isDm = isDm;
+            tab.history.append(e);
+        }
+        if (tab.history.isEmpty())
+            continue;
+        tab.historyIndex = qBound(0, static_cast<int>(historyIndex), tab.history.size() - 1);
+        restored.append(tab);
+    }
+
+    if (ds.status() != QDataStream::Ok || restored.isEmpty())
+        return;
+
+    tabs = restored;
+    currentTabIndex = qBound(0, static_cast<int>(savedCurrent), tabs.size() - 1);
+
+    updateVisibility();
+    update();
+    emit tabChanged(tabs[currentTabIndex].current());
 }
 
 TabBar::TabBar(Core::ImageManager *imageManager, QWidget *parent)
@@ -88,6 +184,7 @@ void TabBar::updateCurrentTab(const TabEntry &entry)
         tab.history[0] = entry;
         tab.historyIndex = 0;
         update();
+        emit tabsChanged();
         return;
     }
 
@@ -106,6 +203,7 @@ void TabBar::updateCurrentTab(const TabEntry &entry)
     }
 
     update();
+    emit tabsChanged();
 }
 
 void TabBar::openNewTab(const TabEntry &entry)
@@ -119,6 +217,7 @@ void TabBar::openNewTab(const TabEntry &entry)
                 updateVisibility();
                 update();
                 emit tabChanged(tabs[i].current());
+                emit tabsChanged();
                 return;
             }
         }
@@ -135,6 +234,7 @@ void TabBar::openNewTab(const TabEntry &entry)
     updateVisibility();
     update();
     emit tabChanged(entry);
+    emit tabsChanged();
 }
 
 void TabBar::navigateBack()
@@ -146,6 +246,7 @@ void TabBar::navigateBack()
     tab.historyIndex--;
     update();
     emit tabChanged(tab.current());
+    emit tabsChanged();
 }
 
 void TabBar::navigateForward()
@@ -157,6 +258,7 @@ void TabBar::navigateForward()
     tab.historyIndex++;
     update();
     emit tabChanged(tab.current());
+    emit tabsChanged();
 }
 
 bool TabBar::canNavigateBack() const
@@ -258,6 +360,8 @@ void TabBar::closeTab(int index)
 
     if (wasActive)
         emit tabChanged(tabs[currentTabIndex].current());
+
+    emit tabsChanged();
 }
 
 void TabBar::switchToTab(int index)
@@ -268,6 +372,7 @@ void TabBar::switchToTab(int index)
     currentTabIndex = index;
     update();
     emit tabChanged(tabs[currentTabIndex].current());
+    emit tabsChanged();
 }
 
 void TabBar::updateVisibility()
@@ -517,6 +622,7 @@ void TabBar::mouseMoveEvent(QMouseEvent *event)
                     currentTabIndex++;
                 dragSourceIndex = targetIdx;
                 update();
+                emit tabsChanged();
             }
         }
     }
