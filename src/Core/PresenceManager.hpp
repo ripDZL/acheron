@@ -1,6 +1,5 @@
 #pragma once
 
-#include <QDebug>
 #include <QHash>
 #include <QList>
 #include <QObject>
@@ -72,8 +71,6 @@ public:
             m_platforms.remove(userId);
         else
             m_platforms.insert(userId, next);
-        qInfo().noquote() << "[platform] user" << static_cast<quint64>(userId) << "platforms:"
-                          << next.size();
         emit presenceChanged(userId, statusOf(userId));
     }
 

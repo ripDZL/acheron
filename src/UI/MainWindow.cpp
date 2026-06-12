@@ -111,6 +111,19 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
     connect(session, &Session::ready, this, [this](const Discord::Ready &ready) {
         channelTreeModel->populateFromReady(ready);
         channelTree->performDefaultExpansion();
+
+        // Activate a restored session's saved active tab now that this account is
+        // authenticated (READY). Doing this on socket-connect instead would send a
+        // member-list subscribe before IDENTIFY and get the connection closed with
+        // 4003 "Not authenticated".
+        if (pendingTabActivation && tabBar->tabCount() > 0 && ready.user.hasValue()) {
+            const Snowflake readyAccountId = ready.user->id.get();
+            const TabEntry &cur = tabBar->tabEntry(tabBar->currentIndex());
+            if (cur.channelId.isValid() && cur.accountId == readyAccountId) {
+                activateChannel(cur);
+                pendingTabActivation = false;
+            }
+        }
     });
 
     connect(accountsModel, &AccountsModel::dataChanged, this,
@@ -135,16 +148,6 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
                             if (proxyIdx.data(ChannelTreeModel::IdRole).toULongLong() == acc.id) {
                                 channelTree->expand(proxyIdx);
                                 break;
-                            }
-                        }
-
-                        // If a restored session is waiting on this account, activate
-                        // its saved active tab now that the account is connected.
-                        if (pendingTabActivation && tabBar->tabCount() > 0) {
-                            const TabEntry &cur = tabBar->tabEntry(tabBar->currentIndex());
-                            if (cur.channelId.isValid() && cur.accountId == acc.id) {
-                                activateChannel(cur);
-                                pendingTabActivation = false;
                             }
                         }
                     } else if (acc.state == Acheron::Core::ConnectionState::Disconnected) {
