@@ -3,7 +3,7 @@
 #include <QVector>
 #include <QWidget>
 
-#include "ChannelList/ChannelTreeModel.hpp"
+#include "UI/ChannelList/ChannelTreeModel.hpp"
 
 class QLineEdit;
 class QListWidget;
