@@ -38,6 +38,7 @@ class VoiceStatusBar;
 class TabBar;
 class LogViewer;
 class QuickSwitcher;
+class HiddenChannelView;
 struct TabEntry;
 } // namespace UI
 } // namespace Acheron
@@ -87,6 +88,8 @@ private:
     ChatView *chatView;
     ChatModel *chatModel;
     ChatDelegate *chatDelegate = nullptr;
+    QStackedWidget *chatStack = nullptr;
+    HiddenChannelView *hiddenChannelView = nullptr;
     MemberListDelegate *memberListDelegate = nullptr;
     LogViewer *logViewer = nullptr;
     QuickSwitcher *quickSwitcher = nullptr;

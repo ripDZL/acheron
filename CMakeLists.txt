@@ -113,6 +113,7 @@ set(PROJECT_SOURCES
     src/Core/Theme/Stylesheet.cpp
     src/Core/Theme/Fonts.cpp
     src/UI/MainWindow.cpp
+    src/UI/Chat/HiddenChannelView.cpp
     src/UI/LogViewer/LogViewer.cpp
     src/UI/QuickSwitcher/QuickSwitcher.cpp
     src/UI/BrowserCaptchaResolver.cpp

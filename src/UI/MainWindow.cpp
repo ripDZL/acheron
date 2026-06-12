@@ -26,6 +26,8 @@
 #include "Core/ReadStateManager.hpp"
 #include "LogViewer/LogViewer.hpp"
 #include "QuickSwitcher/QuickSwitcher.hpp"
+#include "Chat/HiddenChannelView.hpp"
+#include <QStackedWidget>
 #include "Discord/Events.hpp"
 #include "TypingIndicator.hpp"
 #include "SlowModeIndicator.hpp"
@@ -359,6 +361,58 @@ void MainWindow::onChannelSelectionChanged(const QModelIndex &current, const QMo
         slowModeIndicator->setSlowMode(channelId, 0, false);
         memberListView->hide();
         selectedInstance->memberList()->clear();
+
+        // Build the "who can access" list for the placeholder.
+        ChannelNode *serverNode = node;
+        while (serverNode && serverNode->type != ChannelNode::Type::Server)
+            serverNode = serverNode->parent;
+        Snowflake hiddenGuildId = serverNode ? serverNode->id : Snowflake::Invalid;
+
+        QList<HiddenChannelView::AccessEntry> roleEntries, memberEntries;
+        const auto overwrites = selectedInstance->getChannelOverwrites(channelId);
+        const auto guildRoles = selectedInstance->getRolesForGuild(hiddenGuildId);
+        QHash<Snowflake, int> roleIndexById;
+        for (int i = 0; i < guildRoles.size(); ++i)
+            roleIndexById.insert(guildRoles[i].id.get(), i);
+
+        auto roleColor = [](const Discord::Role &role) -> QColor {
+            if (role.color.hasValue() && role.color.get() != 0) {
+                int c = role.color.get();
+                return QColor((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF);
+            }
+            return QColor();
+        };
+
+        QSet<Snowflake> addedRoles;
+        for (const auto &ow : overwrites) {
+            if (!ow.allow.hasValue() || !ow.allow->testFlag(Discord::Permission::VIEW_CHANNEL))
+                continue;
+            if (ow.type.get() == Discord::PermissionOverwrite::Type::Role) {
+                if (ow.id.get() == hiddenGuildId)
+                    continue; // @everyone
+                auto it = roleIndexById.find(ow.id.get());
+                if (it != roleIndexById.end()) {
+                    const Discord::Role &role = guildRoles[it.value()];
+                    roleEntries.append({ role.name.get(), roleColor(role) });
+                    addedRoles.insert(ow.id.get());
+                }
+            } else {
+                QString name = selectedInstance->users()->getDisplayName(ow.id.get(), hiddenGuildId);
+                if (name.isEmpty())
+                    name = QString::number(static_cast<quint64>(ow.id.get()));
+                memberEntries.append({ name, QColor() });
+            }
+        }
+        // Roles with Administrator can always view.
+        for (const auto &role : guildRoles) {
+            if (role.id.get() == hiddenGuildId || addedRoles.contains(role.id.get()))
+                continue;
+            if (role.permissions.hasValue() &&
+                role.permissions->testFlag(Discord::Permission::ADMINISTRATOR))
+                roleEntries.append({ role.name.get(), roleColor(role) });
+        }
+
+        hiddenChannelView->setChannel(node->name, roleEntries, memberEntries, true);
     } else if (node->type != ChannelNode::Type::DMChannel) {
         bool canSend = selectedInstance->permissions()->hasChannelPermission(
                 userId, channelId, Discord::Permission::SEND_MESSAGES);
@@ -413,6 +467,9 @@ void MainWindow::onChannelSelectionChanged(const QModelIndex &current, const QMo
         typingTracker->setActiveChannel(node->id);
         messageInput->clearReplyTarget();
     }
+
+    chatStack->setCurrentWidget(channelHidden ? static_cast<QWidget *>(hiddenChannelView)
+                                              : static_cast<QWidget *>(chatView));
 
     if (!channelHidden)
         messages->requestLoadChannel(node->id);
@@ -745,9 +802,14 @@ void MainWindow::setupUi()
                 }
             });
 
+    chatStack = new QStackedWidget(rightSideWidget);
+    hiddenChannelView = new HiddenChannelView(rightSideWidget);
+    chatStack->addWidget(chatView);
+    chatStack->addWidget(hiddenChannelView);
+
     rightLayout->addWidget(connectionBanner, 0);
     rightLayout->addWidget(tabBar, 0);
-    rightLayout->addWidget(chatView, 1);
+    rightLayout->addWidget(chatStack, 1);
     rightLayout->addWidget(statusRow, 0);
     rightLayout->addWidget(messageInput, 0);
 

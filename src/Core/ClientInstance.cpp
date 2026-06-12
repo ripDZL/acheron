@@ -823,6 +823,11 @@ int ClientInstance::getChannelRateLimit(Snowflake channelId)
     return channelOpt->rateLimitPerUser.get();
 }
 
+QList<Discord::PermissionOverwrite> ClientInstance::getChannelOverwrites(Snowflake channelId)
+{
+    return channelRepo.getPermissionOverwrites(channelId);
+}
+
 ConnectionState ClientInstance::state() const
 {
     return client->getState();

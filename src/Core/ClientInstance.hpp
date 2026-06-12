@@ -58,6 +58,7 @@ public:
     [[nodiscard]] std::optional<Discord::Guild> getGuild(Snowflake guildId);
     [[nodiscard]] std::optional<Snowflake> findDmChannelWithUser(Snowflake userId);
     [[nodiscard]] int getChannelRateLimit(Snowflake channelId);
+    [[nodiscard]] QList<Discord::PermissionOverwrite> getChannelOverwrites(Snowflake channelId);
 
     [[nodiscard]] ConnectionState state() const;
 
