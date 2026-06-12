@@ -12,9 +12,6 @@ class SettingsWindow : public QWidget
 public:
     explicit SettingsWindow(QWidget *parent = nullptr);
 
-signals:
-    void showHiddenChannelsChanged();
-
 private:
     void setupUi();
     void loadSettings();
@@ -44,7 +41,6 @@ private:
     // discord
     QCheckBox *showNicknamesCheckbox = nullptr;
     QCheckBox *showTypingCheckbox = nullptr;
-    QCheckBox *showHiddenChannelsCheckbox = nullptr;
     QSpinBox *avatarSizeSpin = nullptr;
     QSpinBox *emojiSizeSpin = nullptr;
 

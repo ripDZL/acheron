@@ -6,31 +6,8 @@
 #include "Core/PermissionManager.hpp"
 #include "Discord/Enums.hpp"
 
-#include <QSettings>
-#include <atomic>
-
 namespace Acheron {
 namespace UI {
-
-namespace {
-std::atomic<int> g_showHidden{ -1 };
-}
-
-bool ChannelFilterProxyModel::showHiddenChannels()
-{
-    int v = g_showHidden.load(std::memory_order_relaxed);
-    if (v < 0) {
-        v = QSettings().value("channels/show_hidden", false).toBool() ? 1 : 0;
-        g_showHidden.store(v, std::memory_order_relaxed);
-    }
-    return v == 1;
-}
-
-void ChannelFilterProxyModel::setShowHiddenChannels(bool on)
-{
-    g_showHidden.store(on ? 1 : 0, std::memory_order_relaxed);
-    QSettings().setValue("channels/show_hidden", on);
-}
 
 ChannelFilterProxyModel::ChannelFilterProxyModel(Core::Session *session, QObject *parent)
     : QSortFilterProxyModel(parent), session(session), channelModel(nullptr)
@@ -52,14 +29,6 @@ QVariant ChannelFilterProxyModel::data(const QModelIndex &index, int role) const
             Core::Snowflake accountId = getUserIdForNode(sourceIndex);
             return accountId == selectedAccountId;
         }
-        return false;
-    }
-    if (role == ChannelFilterProxyModel::HiddenChannelRole) {
-        QModelIndex sourceIndex = mapToSource(index);
-        ChannelNode *node = static_cast<ChannelNode *>(sourceIndex.internalPointer());
-        if (node && (node->type == ChannelNode::Type::Channel ||
-                     node->type == ChannelNode::Type::VoiceChannel))
-            return !hasChannelViewPermission(sourceIndex);
         return false;
     }
     return QSortFilterProxyModel::data(index, role);
@@ -167,12 +136,8 @@ bool ChannelFilterProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex 
     }
 
     if (nodeType == ChannelNode::Type::Channel || nodeType == ChannelNode::Type::VoiceChannel) {
-        if (showHiddenChannels())
-            return true;
         return hasChannelViewPermission(index);
     } else if (nodeType == ChannelNode::Type::Category) {
-        if (showHiddenChannels())
-            return true;
         auto *permissionManager = instance->permissions();
         if (!permissionManager)
             return true;
