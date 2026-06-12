@@ -6,6 +6,8 @@
 #include "MemberListModel.hpp"
 #include "Core/MemberListManager.hpp"
 #include "Core/Presence.hpp"
+#include "Core/PresenceManager.hpp"
+#include "UI/PlatformIcons.hpp"
 
 constexpr static int GroupHeight = 22;
 constexpr static int MemberHeight = 28;
@@ -137,7 +139,19 @@ void MemberListDelegate::paintMember(QPainter *painter, const QStyleOptionViewIt
     }
 
     x += AvatarSize + AvatarTextSpacing;
-    int textWidth = option.rect.right() - x - HorizontalPadding;
+
+    // Platform indicators, right-aligned; reserve their width before eliding name.
+    QVector<Core::PlatformStatus> platforms;
+    if (presenceManager) {
+        Core::Snowflake uid(index.data(MemberListModel::UserIdRole).toULongLong());
+        platforms = presenceManager->platformsOf(uid);
+    }
+    constexpr int PlatIconSize = 14;
+    constexpr int PlatIconGap = 2;
+    const int platformsWidth =
+            platforms.isEmpty() ? 0 : platforms.size() * (PlatIconSize + PlatIconGap);
+
+    int textWidth = option.rect.right() - x - HorizontalPadding - platformsWidth;
     QRect nameRect(x, option.rect.top(), textWidth, option.rect.height());
 
     QString displayName = index.data(MemberListModel::UsernameRole).toString();
@@ -159,6 +173,16 @@ void MemberListDelegate::paintMember(QPainter *painter, const QStyleOptionViewIt
     QFontMetrics fm(font);
     QString elidedName = fm.elidedText(displayName, Qt::ElideRight, textWidth);
     painter->drawText(nameRect, Qt::AlignLeft | Qt::AlignVCenter, elidedName);
+
+    if (!platforms.isEmpty()) {
+        int iconY = option.rect.top() + (option.rect.height() - PlatIconSize) / 2;
+        int ix = option.rect.right() - HorizontalPadding - platformsWidth + PlatIconGap;
+        for (const auto &p : platforms) {
+            drawPlatformIcon(painter, QRectF(ix, iconY, PlatIconSize, PlatIconSize), p.platform,
+                             Core::presenceDotColor(p.status));
+            ix += PlatIconSize + PlatIconGap;
+        }
+    }
 }
 
 void MemberListDelegate::paintPlaceholder(QPainter *painter,

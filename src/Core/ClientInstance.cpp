@@ -177,8 +177,10 @@ ClientInstance::ClientInstance(const AccountInfo &info,
 
                 if (data.friendPresences.hasValue()) {
                     for (const auto &pres : data.friendPresences.get()) {
-                        if (pres.userId.hasValue() && pres.status.hasValue())
+                        if (pres.userId.hasValue() && pres.status.hasValue()) {
                             presenceManager->update(pres.userId.get(), pres.status.get());
+                            presenceManager->updateClientStatus(pres.userId.get(), pres.clientStatus);
+                        }
                     }
                 }
 
@@ -564,6 +566,7 @@ void ClientInstance::onGuildMemberListUpdate(const Discord::GuildMemberListUpdat
             presenceManager->update(uid, member.presenceStatus.get());
         else if (groupId == QStringLiteral("offline"))
             presenceManager->update(uid, Core::PresenceStatus::Offline);
+        presenceManager->updateClientStatus(uid, member.clientStatus);
     };
 
     for (const auto &op : update.ops.get()) {
@@ -760,6 +763,7 @@ void ClientInstance::onPresenceUpdate(const Discord::PresenceUpdate &event)
     if (!event.userId.hasValue() || !event.status.hasValue())
         return;
     presenceManager->update(event.userId.get(), event.status.get());
+    presenceManager->updateClientStatus(event.userId.get(), event.clientStatus);
 }
 
 #ifndef ACHERON_NO_VOICE

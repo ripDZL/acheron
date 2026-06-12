@@ -87,6 +87,7 @@ private:
     ChatView *chatView;
     ChatModel *chatModel;
     ChatDelegate *chatDelegate = nullptr;
+    MemberListDelegate *memberListDelegate = nullptr;
     LogViewer *logViewer = nullptr;
     QuickSwitcher *quickSwitcher = nullptr;
 

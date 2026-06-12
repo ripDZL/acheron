@@ -15,6 +15,7 @@ struct PresenceUpdate : Core::JsonUtils::JsonObject
     Field<Core::Snowflake> userId;
     Field<QString> status;
     Field<Core::Snowflake, true> guildId;
+    QList<QPair<QString, QString>> clientStatus; // (platform, status)
 
     static PresenceUpdate fromJson(const QJsonObject &obj)
     {
@@ -25,6 +26,11 @@ struct PresenceUpdate : Core::JsonUtils::JsonObject
         }
         get(obj, "status", ev.status);
         get(obj, "guild_id", ev.guildId);
+        if (obj.contains("client_status") && obj["client_status"].isObject()) {
+            const QJsonObject cs = obj["client_status"].toObject();
+            for (auto it = cs.begin(); it != cs.end(); ++it)
+                ev.clientStatus.append({ it.key(), it.value().toString() });
+        }
         return ev;
     }
 };
@@ -119,6 +125,11 @@ struct ReadySupplemental : Core::JsonUtils::JsonObject
                 PresenceUpdate pu;
                 pu.userId = Core::Snowflake(pres.value("user_id").toString().toULongLong());
                 pu.status = pres.value("status").toString();
+                if (pres.contains("client_status") && pres["client_status"].isObject()) {
+                    const QJsonObject cs = pres["client_status"].toObject();
+                    for (auto it = cs.begin(); it != cs.end(); ++it)
+                        pu.clientStatus.append({ it.key(), it.value().toString() });
+                }
                 friends.append(pu);
             }
             readySupplemental.friendPresences = friends;

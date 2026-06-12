@@ -1,13 +1,22 @@
 #pragma once
 
 #include <QHash>
+#include <QList>
 #include <QObject>
+#include <QPair>
+#include <QVector>
 
 #include "Presence.hpp"
 #include "Snowflake.hpp"
 
 namespace Acheron {
 namespace Core {
+
+struct PlatformStatus {
+    Platform platform;
+    PresenceStatus status;
+    bool operator==(const PlatformStatus &) const = default;
+};
 
 // Per-account store of the last-known presence status for users, fed by the
 // member list and PRESENCE_UPDATE events. Any view that shows a user avatar can
@@ -35,11 +44,42 @@ public:
 
     void update(Snowflake userId, const QString &status) { update(userId, presenceFromString(status)); }
 
+    [[nodiscard]] QVector<PlatformStatus> platformsOf(Snowflake userId) const
+    {
+        return m_platforms.value(userId);
+    }
+
+    // platformStatuses: list of (platform-name, status-string) from a presence's
+    // client_status object, e.g. {("desktop","online"),("mobile","idle")}.
+    void updateClientStatus(Snowflake userId, const QList<QPair<QString, QString>> &platformStatuses)
+    {
+        if (!userId.isValid())
+            return;
+
+        QVector<PlatformStatus> next;
+        next.reserve(platformStatuses.size());
+        for (const auto &[name, statusStr] : platformStatuses) {
+            const PresenceStatus s = presenceFromString(statusStr);
+            if (s == PresenceStatus::Unknown)
+                continue;
+            next.append({ platformFromString(name), s });
+        }
+
+        if (m_platforms.value(userId) == next)
+            return;
+        if (next.isEmpty())
+            m_platforms.remove(userId);
+        else
+            m_platforms.insert(userId, next);
+        emit presenceChanged(userId, statusOf(userId));
+    }
+
 signals:
     void presenceChanged(Acheron::Core::Snowflake userId, Acheron::Core::PresenceStatus status);
 
 private:
     QHash<Snowflake, PresenceStatus> m_status;
+    QHash<Snowflake, QVector<PlatformStatus>> m_platforms;
 };
 
 } // namespace Core

@@ -3,6 +3,9 @@
 #include <QStyledItemDelegate>
 
 namespace Acheron {
+namespace Core {
+class PresenceManager;
+}
 namespace UI {
 
 class MemberListDelegate : public QStyledItemDelegate
@@ -10,6 +13,8 @@ class MemberListDelegate : public QStyledItemDelegate
     Q_OBJECT
 public:
     explicit MemberListDelegate(QObject *parent = nullptr);
+
+    void setPresenceManager(Core::PresenceManager *presences) { presenceManager = presences; }
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
                const QModelIndex &index) const override;
@@ -22,6 +27,8 @@ private:
     void paintMember(QPainter *painter, const QStyleOptionViewItem &option,
                      const QModelIndex &index) const;
     void paintPlaceholder(QPainter *painter, const QStyleOptionViewItem &option) const;
+
+    Core::PresenceManager *presenceManager = nullptr;
 };
 
 } // namespace UI

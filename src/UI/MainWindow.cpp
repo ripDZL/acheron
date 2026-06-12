@@ -441,6 +441,7 @@ void MainWindow::switchActiveInstance(Core::ClientInstance *newInstance)
 
     memberListModel->setManager(currentInstance->memberList());
     memberListModel->setPresenceManager(currentInstance->presences());
+    memberListDelegate->setPresenceManager(currentInstance->presences());
     chatDelegate->setPresenceManager(currentInstance->presences());
     channelDelegate->setPresenceManager(currentInstance->presences());
     connect(currentInstance->presences(), &Core::PresenceManager::presenceChanged, this,
@@ -731,7 +732,8 @@ void MainWindow::setupUi()
 
     memberListView = new MemberListView(central);
     memberListView->setModel(memberListModel);
-    memberListView->setItemDelegate(new MemberListDelegate(memberListView));
+    memberListDelegate = new MemberListDelegate(memberListView);
+    memberListView->setItemDelegate(memberListDelegate);
 
     connect(&Core::Theme::Manager::instance(), &Core::Theme::Manager::themeChanged, this, [this]() {
         chatModel->invalidateDocCache();

@@ -14,6 +14,24 @@ enum class PresenceStatus {
     Dnd,
 };
 
+enum class Platform {
+    Desktop,
+    Mobile,
+    Web,
+    Embedded, // console
+};
+
+inline Platform platformFromString(const QString &s)
+{
+    if (s == QStringLiteral("mobile"))
+        return Platform::Mobile;
+    if (s == QStringLiteral("web"))
+        return Platform::Web;
+    if (s == QStringLiteral("embedded"))
+        return Platform::Embedded;
+    return Platform::Desktop;
+}
+
 inline PresenceStatus presenceFromString(const QString &s)
 {
     if (s == QStringLiteral("online"))
