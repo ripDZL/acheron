@@ -16,7 +16,13 @@ class ChannelFilterProxyModel : public QSortFilterProxyModel
 public:
     enum Roles {
         SelectedRole = Qt::UserRole,
+        HiddenChannelRole = Qt::UserRole + 1, // channel shown but user lacks VIEW_CHANNEL
     };
+
+    // When enabled, channels the user cannot view are shown (locked) instead of
+    // being filtered out. File-scope setting, persisted to QSettings.
+    static bool showHiddenChannels();
+    static void setShowHiddenChannels(bool on);
 
     explicit ChannelFilterProxyModel(Core::Session *session, QObject *parent = nullptr);
 

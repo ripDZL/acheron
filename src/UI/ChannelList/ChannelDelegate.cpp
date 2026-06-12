@@ -423,6 +423,7 @@ void ChannelDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
     // determine text color
     QColor textColor = option.palette.text().color();
     bool isSelected = index.data(ChannelFilterProxyModel::SelectedRole).toBool();
+    bool isHiddenChannel = index.data(ChannelFilterProxyModel::HiddenChannelRole).toBool();
     if (node->type == ChannelNode::Type::Channel || node->type == ChannelNode::Type::VoiceChannel ||
         node->type == ChannelNode::Type::DMChannel) {
         if (node->isMuted)
@@ -433,14 +434,16 @@ void ChannelDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
         if (node->isUnread && !node->isMuted)
             textColor = option.palette.brightText().color();
     }
+    if (isHiddenChannel) // dim no-access channels regardless of unread state
+        textColor = option.palette.text().color().darker(180);
 
     if (node->type == ChannelNode::Type::Channel) {
         drawHashIcon(painter, contentOpt.rect, textColor);
-        if (node->isPrivate)
+        if (node->isPrivate || isHiddenChannel)
             drawPadlockOverlay(painter, contentOpt.rect, textColor, option.palette.base().color());
     } else if (node->type == ChannelNode::Type::VoiceChannel) {
         drawSpeakerIcon(painter, contentOpt.rect, textColor);
-        if (node->isPrivate)
+        if (node->isPrivate || isHiddenChannel)
             drawPadlockOverlay(painter, contentOpt.rect, textColor, option.palette.base().color());
     }
 
