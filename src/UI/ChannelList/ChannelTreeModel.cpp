@@ -1270,5 +1270,20 @@ QList<QPair<Snowflake, Snowflake>> ChannelTreeModel::getMarkableChannels(const Q
     return result;
 }
 
+QHash<Snowflake, QList<QPair<Snowflake, Snowflake>>> ChannelTreeModel::getAllMarkableChannels()
+{
+    QHash<Snowflake, QList<QPair<Snowflake, Snowflake>>> result;
+    for (auto it = accountNodes.constBegin(); it != accountNodes.constEnd(); ++it) {
+        ChannelNode *accountNode = it.value();
+        if (!accountNode)
+            continue;
+        QList<QPair<Snowflake, Snowflake>> pairs;
+        collectMarkableChannels(accountNode, pairs);
+        if (!pairs.isEmpty())
+            result.insert(it.key(), pairs);
+    }
+    return result;
+}
+
 } // namespace UI
 } // namespace Acheron

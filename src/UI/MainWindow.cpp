@@ -232,6 +232,15 @@ void MainWindow::saveTabSession()
     QSettings().setValue("tabs/session", tabBar->serializeSession());
 }
 
+void MainWindow::markAllChannelsAsRead()
+{
+    const auto byAccount = channelTreeModel->getAllMarkableChannels();
+    for (auto it = byAccount.constBegin(); it != byAccount.constEnd(); ++it) {
+        if (ClientInstance *instance = session->client(it.key()))
+            instance->readState()->markChannelsAsRead(it.value());
+    }
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *ev)
 {
     if (ev->type() == QEvent::MouseButtonPress && isActiveWindow()) {
@@ -1163,6 +1172,13 @@ void MainWindow::setupMenu()
     auto *settingsAction = new QAction(tr("&Settings"), this);
     connect(settingsAction, &QAction::triggered, this, &MainWindow::openSettingsWindow);
     viewMenu->addAction(settingsAction);
+
+    // Top-level "Mark as Read" button (sits to the right of the View menu) that
+    // marks every channel and DM across all accounts as read.
+    auto *markAllReadAction = new QAction(tr("Mark as Read"), this);
+    markAllReadAction->setToolTip(tr("Mark all messages in every server and DM as read"));
+    connect(markAllReadAction, &QAction::triggered, this, &MainWindow::markAllChannelsAsRead);
+    menuBar->addAction(markAllReadAction);
 
     // DEBUG: Ctrl+Shift+R to force a Gateway reconnect
     auto *debugReconnect = new QAction(this);

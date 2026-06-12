@@ -68,6 +68,8 @@ public:
     void toggleCollapsed(const QModelIndex &index);
 
     QList<QPair<Snowflake, Snowflake>> getMarkableChannels(const QModelIndex &index);
+    // Every markable channel across all accounts, grouped by account id.
+    QHash<Snowflake, QList<QPair<Snowflake, Snowflake>>> getAllMarkableChannels();
     ChannelNode *findChannelTreeNode(Snowflake channelId);
     ChannelNode *findChannelTreeNode(Snowflake channelId, Snowflake accountId);
     QModelIndex indexForNode(ChannelNode *node) const;

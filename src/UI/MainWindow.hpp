@@ -61,6 +61,7 @@ private slots:
 private:
     void switchActiveInstance(Core::ClientInstance *instance);
     void saveTabSession();
+    void markAllChannelsAsRead();
     void setupPermanentConnections(Core::ClientInstance *instance);
     void switchToTabEntry(const TabEntry &entry);
     void activateChannel(const TabEntry &entry);
