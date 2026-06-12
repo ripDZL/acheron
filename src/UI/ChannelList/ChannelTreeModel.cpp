@@ -1285,5 +1285,49 @@ QHash<Snowflake, QList<QPair<Snowflake, Snowflake>>> ChannelTreeModel::getAllMar
     return result;
 }
 
+namespace {
+void collectChannelsRecursive(ChannelNode *node, Snowflake accountId, ChannelNode *serverNode,
+                              const QString &dmContext,
+                              QVector<ChannelTreeModel::ChannelSearchResult> &out)
+{
+    if (!node)
+        return;
+
+    if (node->type == ChannelNode::Type::Channel) {
+        ChannelTreeModel::ChannelSearchResult r;
+        r.channelId = node->id;
+        r.accountId = accountId;
+        r.guildId = serverNode ? serverNode->id : Snowflake::Invalid;
+        r.name = node->name;
+        r.context = serverNode ? serverNode->name : QString();
+        r.guildIconHash = serverNode ? serverNode->TEMP_iconHash : QString();
+        r.isDm = false;
+        out.append(r);
+    } else if (node->type == ChannelNode::Type::DMChannel) {
+        ChannelTreeModel::ChannelSearchResult r;
+        r.channelId = node->id;
+        r.accountId = accountId;
+        r.guildId = Snowflake::Invalid;
+        r.name = node->name;
+        r.context = dmContext;
+        r.isDm = true;
+        out.append(r);
+    }
+
+    ChannelNode *nextServer = (node->type == ChannelNode::Type::Server) ? node : serverNode;
+    for (auto &child : node->children)
+        collectChannelsRecursive(child.get(), accountId, nextServer, dmContext, out);
+}
+} // namespace
+
+QVector<ChannelTreeModel::ChannelSearchResult> ChannelTreeModel::collectAllChannels()
+{
+    QVector<ChannelSearchResult> out;
+    const QString dmContext = tr("Direct Message");
+    for (auto it = accountNodes.constBegin(); it != accountNodes.constEnd(); ++it)
+        collectChannelsRecursive(it.value(), it.key(), nullptr, dmContext, out);
+    return out;
+}
+
 } // namespace UI
 } // namespace Acheron

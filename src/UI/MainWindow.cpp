@@ -25,6 +25,7 @@
 #include "Core/Logging.hpp"
 #include "Core/ReadStateManager.hpp"
 #include "LogViewer/LogViewer.hpp"
+#include "QuickSwitcher/QuickSwitcher.hpp"
 #include "Discord/Events.hpp"
 #include "TypingIndicator.hpp"
 #include "SlowModeIndicator.hpp"
@@ -254,6 +255,28 @@ void MainWindow::toggleLogViewer()
         logViewer->raise();
         logViewer->activateWindow();
     }
+}
+
+void MainWindow::openQuickSwitcher()
+{
+    if (!quickSwitcher) {
+        quickSwitcher = new QuickSwitcher(this);
+        connect(quickSwitcher, &QuickSwitcher::channelChosen, this,
+                [this](const ChannelTreeModel::ChannelSearchResult &r) {
+                    TabEntry entry;
+                    entry.channelId = r.channelId;
+                    entry.guildId = r.guildId;
+                    entry.accountId = r.accountId;
+                    entry.name = r.name;
+                    entry.isDm = r.isDm;
+                    if (r.guildId.isValid() && !r.guildIconHash.isEmpty())
+                        entry.iconUrl = Discord::Cdn::guildIcon(r.guildId, r.guildIconHash, 64);
+                    tabBar->openNewTab(entry);
+                });
+    }
+
+    quickSwitcher->setResults(channelTreeModel->collectAllChannels());
+    quickSwitcher->showCentered(this);
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *ev)
@@ -1193,6 +1216,12 @@ void MainWindow::setupMenu()
     connect(eventLogAction, &QAction::triggered, this, &MainWindow::toggleLogViewer);
     viewMenu->addAction(eventLogAction);
     addAction(eventLogAction); // make Ctrl+L work window-wide
+
+    auto *quickSwitcherAction = new QAction(tr("&Quick Switcher"), this);
+    quickSwitcherAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_K));
+    connect(quickSwitcherAction, &QAction::triggered, this, &MainWindow::openQuickSwitcher);
+    viewMenu->addAction(quickSwitcherAction);
+    addAction(quickSwitcherAction); // make Ctrl+K work window-wide
 
     // Top-level "Mark as Read" button (sits to the right of the View menu) that
     // marks every channel and DM across all accounts as read.

@@ -70,6 +70,19 @@ public:
     QList<QPair<Snowflake, Snowflake>> getMarkableChannels(const QModelIndex &index);
     // Every markable channel across all accounts, grouped by account id.
     QHash<Snowflake, QList<QPair<Snowflake, Snowflake>>> getAllMarkableChannels();
+
+    // Flat, searchable listing of text channels and DMs across every account,
+    // used by the Ctrl+K quick switcher.
+    struct ChannelSearchResult {
+        Snowflake channelId;
+        Snowflake guildId;
+        Snowflake accountId;
+        QString name;          // channel or DM name
+        QString context;       // server name, or "Direct Message"
+        QString guildIconHash; // for the tab icon (empty for DMs)
+        bool isDm = false;
+    };
+    QVector<ChannelSearchResult> collectAllChannels();
     ChannelNode *findChannelTreeNode(Snowflake channelId);
     ChannelNode *findChannelTreeNode(Snowflake channelId, Snowflake accountId);
     QModelIndex indexForNode(ChannelNode *node) const;
