@@ -5,6 +5,7 @@
 #include "ChannelFilterProxyModel.hpp"
 #include "Core/Presence.hpp"
 #include "Core/PresenceManager.hpp"
+#include "UI/PlatformIcons.hpp"
 
 namespace Acheron {
 namespace UI {
@@ -451,11 +452,32 @@ void ChannelDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
         rightReserve = fm.horizontalAdvance(countText) + fm.height() / 2 + 8;
     }
 
+    // platform indicators for DM recipients (right-aligned, all active platforms)
+    QVector<Core::PlatformStatus> dmPlatforms;
+    if (node->type == ChannelNode::Type::DMChannel && presenceManager &&
+        node->dmRecipientId.isValid())
+        dmPlatforms = presenceManager->platformsOf(node->dmRecipientId);
+    constexpr int PlatIconSize = 13;
+    constexpr int PlatIconGap = 2;
+    const int platformsWidth =
+            dmPlatforms.isEmpty() ? 0 : dmPlatforms.size() * (PlatIconSize + PlatIconGap);
+    rightReserve += platformsWidth;
+
     QRect textRect = contentOpt.rect.adjusted(iconSize, 0, -rightReserve, 0);
     painter->setPen(textColor);
     QString elidedName = painter->fontMetrics().elidedText(
             index.data(Qt::DisplayRole).toString(), Qt::ElideRight, textRect.width());
     painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, elidedName);
+
+    if (!dmPlatforms.isEmpty()) {
+        int iconY = contentOpt.rect.top() + (contentOpt.rect.height() - PlatIconSize) / 2;
+        int ix = contentOpt.rect.right() - platformsWidth + PlatIconGap;
+        for (const auto &p : dmPlatforms) {
+            drawPlatformIcon(painter, QRectF(ix, iconY, PlatIconSize, PlatIconSize), p.platform,
+                             Core::presenceDotColor(p.status));
+            ix += PlatIconSize + PlatIconGap;
+        }
+    }
 
     // branch indicator for categories
     if (node->type == ChannelNode::Type::Category)

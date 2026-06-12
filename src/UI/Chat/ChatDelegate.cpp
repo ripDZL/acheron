@@ -6,6 +6,7 @@
 #include "Core/ImageManager.hpp"
 #include "Core/Presence.hpp"
 #include "Core/PresenceManager.hpp"
+#include "UI/PlatformIcons.hpp"
 #include "Core/Theme/Manager.hpp"
 
 #include <algorithm>
@@ -229,12 +230,32 @@ void ChatDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
         painter->setPen(headerColor);
         painter->drawText(layout.headerRect, Qt::AlignLeft | Qt::AlignTop, username);
 
+        int usernameWidth = headerFm.horizontalAdvance(username);
+
+        // platform indicators after the username (all active platforms)
+        QVector<Core::PlatformStatus> platforms;
+        if (presenceManager)
+            platforms = presenceManager->platformsOf(
+                    Core::Snowflake(index.data(ChatModel::UserIdRole).toULongLong()));
+        constexpr int PlatIconSize = 14;
+        constexpr int PlatIconGap = 2;
+        int platformsBlock = 0;
+        if (!platforms.isEmpty()) {
+            int ix = layout.headerRect.left() + usernameWidth + 6;
+            int iconY = layout.headerRect.top() + (headerFm.height() - PlatIconSize) / 2;
+            for (const auto &p : platforms) {
+                drawPlatformIcon(painter, QRectF(ix, iconY, PlatIconSize, PlatIconSize), p.platform,
+                                 Core::presenceDotColor(p.status));
+                ix += PlatIconSize + PlatIconGap;
+            }
+            platformsBlock = 6 + platforms.size() * (PlatIconSize + PlatIconGap);
+        }
+
         QFont timestampFont = option.font;
         timestampFont.setWeight(QFont::Light);
         painter->setFont(timestampFont);
 
-        int usernameWidth = headerFm.horizontalAdvance(username);
-        QRect timestampRect = layout.headerRect.adjusted(usernameWidth, 0, 0, 0);
+        QRect timestampRect = layout.headerRect.adjusted(usernameWidth + platformsBlock, 0, 0, 0);
         painter->setPen(option.palette.text().color().darker(150));
         painter->drawText(timestampRect, Qt::AlignLeft | Qt::AlignTop,
                           "  " + timestamp.toString("hh:mm"));
