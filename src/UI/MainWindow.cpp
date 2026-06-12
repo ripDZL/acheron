@@ -1028,6 +1028,21 @@ void MainWindow::setupUi()
                     if (!guildNode)
                         return;
 
+                    // Safety net: never send a join for a voice channel the user
+                    // can't access. Attempting to join a channel without
+                    // VIEW_CHANNEL/CONNECT could be flagged by Discord.
+                    auto *perms = instance->permissions();
+                    if (perms &&
+                        (!perms->hasChannelPermission(accountNode->id, node->id,
+                                                      Discord::Permission::VIEW_CHANNEL) ||
+                         !perms->hasChannelPermission(accountNode->id, node->id,
+                                                      Discord::Permission::CONNECT))) {
+                        qCInfo(LogVoice)
+                                << "Refusing to join voice channel without permission"
+                                << node->name << node->id;
+                        return;
+                    }
+
                     qCInfo(LogVoice) << "Joining voice channel" << node->name << node->id
                                      << "in guild" << guildNode->id;
                     instance->discord()->sendVoiceStateUpdate(guildNode->id, node->id, false, false);

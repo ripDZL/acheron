@@ -129,12 +129,21 @@ void ChannelTreeView::contextMenuEvent(QContextMenuEvent *event)
     if (isVoiceChannel || isDMChannel) {
         QString joinText = isDMChannel ? tr("Join Call") : tr("Join Voice Channel");
         QAction *joinAction = menu.addAction(joinText);
+        // A hidden voice channel means no VIEW_CHANNEL (and admins always have it,
+        // so they are never "hidden"); never let the user attempt to join one.
+        bool hiddenVoice =
+                proxyIndex.data(ChannelFilterProxyModel::HiddenChannelRole).toBool();
 #ifdef ACHERON_NO_VOICE
         joinAction->setEnabled(false);
 #else
-        connect(joinAction, &QAction::triggered, this, [this, proxyIndex]() {
-            emit joinVoiceChannelRequested(proxyIndex);
-        });
+        if (hiddenVoice) {
+            joinAction->setEnabled(false);
+            joinAction->setToolTip(tr("You do not have permission to join this channel"));
+        } else {
+            connect(joinAction, &QAction::triggered, this, [this, proxyIndex]() {
+                emit joinVoiceChannelRequested(proxyIndex);
+            });
+        }
 #endif
 
         Core::Snowflake acctId = findAccountIdForIndex(sourceIndex);
