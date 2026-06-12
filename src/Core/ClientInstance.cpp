@@ -558,6 +558,7 @@ void ClientInstance::onGuildMemberListUpdate(const Discord::GuildMemberListUpdat
     // Feed presence: use the member's own status when present, otherwise infer
     // Offline for members the server placed in the "offline" group (those items
     // carry no presence object, which is why they'd otherwise show no dot).
+    int g_mlPresenceTotal = 0, g_mlPresenceWithClient = 0;
     auto feedPresence = [&](const Discord::Member &member, const QString &groupId) {
         if (!member.user.hasValue() || !member.user->id.hasValue())
             return;
@@ -567,6 +568,9 @@ void ClientInstance::onGuildMemberListUpdate(const Discord::GuildMemberListUpdat
         else if (groupId == QStringLiteral("offline"))
             presenceManager->update(uid, Core::PresenceStatus::Offline);
         presenceManager->updateClientStatus(uid, member.clientStatus);
+        ++g_mlPresenceTotal;
+        if (!member.clientStatus.isEmpty())
+            ++g_mlPresenceWithClient;
     };
 
     for (const auto &op : update.ops.get()) {
@@ -586,6 +590,8 @@ void ClientInstance::onGuildMemberListUpdate(const Discord::GuildMemberListUpdat
             feedPresence(op.item.get().member.get(), QString());
         }
     }
+    qInfo().noquote() << "[platform] member-list update: members=" << g_mlPresenceTotal
+                      << "with client_status=" << g_mlPresenceWithClient;
 
     if (!users.isEmpty())
         userManager->saveUsers(users);
