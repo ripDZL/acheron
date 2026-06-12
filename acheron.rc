@@ -1,1 +1,5 @@
-IDI_ICON1		ICON		DISCARDABLE	"acheron.ico"
+#ifdef ACHERON_DEBUG_BUILD
+IDI_ICON1	ICON	DISCARDABLE	"acheron_debug.ico"
+#else
+IDI_ICON1	ICON	DISCARDABLE	"acheron.ico"
+#endif

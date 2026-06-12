@@ -202,6 +202,9 @@ endif()
 # (acheron.rc references acheron.ico, resolved relative to this directory).
 if(WIN32)
     list(APPEND PROJECT_SOURCES acheron.rc)
+    # Debug builds embed the legacy (Charon) icon; release uses the new icon.
+    set_source_files_properties(acheron.rc PROPERTIES
+        COMPILE_DEFINITIONS "$<$<CONFIG:Debug>:ACHERON_DEBUG_BUILD>")
 endif()
 
 qt_add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
@@ -265,6 +268,8 @@ set_target_properties(${PROJECT_NAME}
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
+# Debug builds use the legacy icon at runtime (window/tray); release uses the new one.
+target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:ACHERON_DEBUG_BUILD>)
 if(NOT ENABLE_VOICE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE ACHERON_NO_VOICE)
 endif()

@@ -50,6 +50,16 @@ using namespace Acheron::Core;
 namespace Acheron {
 namespace UI {
 
+namespace {
+// Debug builds carry the legacy (Charon) icon; release builds use the new icon.
+#ifdef ACHERON_DEBUG_BUILD
+constexpr const char *kAppIconResource = ":/acheron_debug.ico";
+#else
+constexpr const char *kAppIconResource = ":/acheron.ico";
+#endif
+} // namespace
+
+
 MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent), session(session)
 {
     auto *captchaResolver = new BrowserCaptchaResolver(this, this);
@@ -81,7 +91,7 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
 
     setupUi();
     setupMenu();
-    setWindowIcon(QIcon(":/acheron.ico"));
+    setWindowIcon(QIcon(kAppIconResource));
     setupTrayIcon();
 
     if (QSettings().value("general/show_accounts_on_launch", false).toBool())
@@ -184,7 +194,7 @@ void MainWindow::setupTrayIcon()
     if (!QSettings().value("tray/show_icon", true).toBool())
         return;
 
-    trayIcon = new QSystemTrayIcon(QIcon(":/acheron.ico"), this);
+    trayIcon = new QSystemTrayIcon(QIcon(kAppIconResource), this);
     trayIcon->setToolTip(QStringLiteral("Acheron"));
 
     auto *menu = new QMenu(this);

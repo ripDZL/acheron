@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file>resources/placeholder.png</file>
         <file>acheron.ico</file>
+        <file>acheron_debug.ico</file>
     </qresource>
 </RCC>
