@@ -198,6 +198,12 @@ else()
     list(APPEND PROJECT_SOURCES vendor/qrcodegen/cpp/qrcodegen.cpp)
 endif()
 
+# On Windows, compile the resource script so the .exe carries the app icon
+# (acheron.rc references acheron.ico, resolved relative to this directory).
+if(WIN32)
+    list(APPEND PROJECT_SOURCES acheron.rc)
+endif()
+
 qt_add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/emoji-segmenter)
