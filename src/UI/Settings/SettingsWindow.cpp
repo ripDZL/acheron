@@ -4,6 +4,7 @@
 #include "UI/TypingIndicator.hpp"
 #include "UI/Chat/ChatView.hpp"
 #include "UI/TabBar/TabBar.hpp"
+#include "UI/ChannelList/ChannelFilterProxyModel.hpp"
 #include "Core/ImageManager.hpp"
 #include "Core/UserManager.hpp"
 #include "Core/AV/AudioDevicePrefs.hpp"
@@ -226,6 +227,15 @@ void SettingsWindow::buildDiscordPage()
     layout->addWidget(showTypingCheckbox);
     connect(showTypingCheckbox, &QCheckBox::toggled, this, [](bool checked) {
         TypingIndicator::setShowTyping(checked);
+    });
+
+    showHiddenChannelsCheckbox = new QCheckBox(tr("Show hidden channels"), page);
+    showHiddenChannelsCheckbox->setToolTip(
+            tr("Show channels you don't have access to, locked and read-only."));
+    layout->addWidget(showHiddenChannelsCheckbox);
+    connect(showHiddenChannelsCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
+        ChannelFilterProxyModel::setShowHiddenChannels(checked);
+        emit showHiddenChannelsChanged();
     });
 
     // Sizing controls (applied on restart)
@@ -464,6 +474,7 @@ void SettingsWindow::loadSettings()
     closeToTrayCheckbox->setChecked(settings.value("tray/close_to_tray", true).toBool());
     showNicknamesCheckbox->setChecked(Core::UserManager::showNicknames());
     showTypingCheckbox->setChecked(TypingIndicator::showTyping());
+    showHiddenChannelsCheckbox->setChecked(ChannelFilterProxyModel::showHiddenChannels());
 
     QString locale = settings.value("language/locale", "en_US").toString();
     int li = languageCombo->findData(locale);

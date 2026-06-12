@@ -332,6 +332,7 @@ void MainWindow::onChannelSelectionChanged(const QModelIndex &current, const QMo
 
     Core::Snowflake userId = selectedInstance->accountId();
     Core::Snowflake channelId = node->id;
+    bool channelHidden = false;
 
     if (node->type == ChannelNode::Type::DMChannel) {
         messageInput->setEnabled(true);
@@ -343,6 +344,22 @@ void MainWindow::onChannelSelectionChanged(const QModelIndex &current, const QMo
         memberListView->hide();
         selectedInstance->memberList()->clear();
     } else {
+        channelHidden = !selectedInstance->permissions()->hasChannelPermission(
+                userId, channelId, Discord::Permission::VIEW_CHANNEL);
+    }
+
+    if (channelHidden) {
+        // No-access channel shown via "show hidden channels": never subscribe or
+        // fetch (we'd just get rejected); present it as locked.
+        messageInput->setEnabled(false);
+        messageInput->setSendBlocked(true);
+        messageInput->setPlaceholder("You do not have access to this channel");
+        chatView->setCanPinMessages(false);
+        chatView->setCanManageMessages(false);
+        slowModeIndicator->setSlowMode(channelId, 0, false);
+        memberListView->hide();
+        selectedInstance->memberList()->clear();
+    } else if (node->type != ChannelNode::Type::DMChannel) {
         bool canSend = selectedInstance->permissions()->hasChannelPermission(
                 userId, channelId, Discord::Permission::SEND_MESSAGES);
         bool canPin = selectedInstance->permissions()->hasChannelPermission(
@@ -397,9 +414,10 @@ void MainWindow::onChannelSelectionChanged(const QModelIndex &current, const QMo
         messageInput->clearReplyTarget();
     }
 
-    messages->requestLoadChannel(node->id);
+    if (!channelHidden)
+        messages->requestLoadChannel(node->id);
 
-    if (node->isUnread && node->lastMessageId.isValid())
+    if (!channelHidden && node->isUnread && node->lastMessageId.isValid())
         selectedInstance->readState()->markChannelAsRead(node->id, node->lastMessageId);
 
     {
@@ -1266,8 +1284,13 @@ void MainWindow::openAccountsWindow()
 
 void MainWindow::openSettingsWindow()
 {
-    if (!settingsWindow)
+    if (!settingsWindow) {
         settingsWindow = new SettingsWindow();
+        connect(settingsWindow, &SettingsWindow::showHiddenChannelsChanged, this, [this]() {
+            channelFilterProxy->invalidateFilter();
+            channelTree->viewport()->update();
+        });
+    }
 
     settingsWindow->show();
     settingsWindow->raise();
