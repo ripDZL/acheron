@@ -1,5 +1,7 @@
 #include "Logging.hpp"
 
+#include "LogBroadcaster.hpp"
+
 #include <iostream>
 
 Q_LOGGING_CATEGORY(LogCore, "acheron.core");
@@ -37,6 +39,10 @@ void Logger::init()
 
     stopping = false;
     writerThread = new std::thread(&Logger::writerLoop);
+
+    // Touch the broadcaster on the main thread so the in-app log viewer receives
+    // live entries with correct thread affinity.
+    (void) LogBroadcaster::instance();
 
     qInstallMessageHandler(Logger::messageHandler);
 }
@@ -160,6 +166,8 @@ void Logger::messageHandler(QtMsgType type, const QMessageLogContext &context, c
         queue.push_back(formatted.toUtf8().toStdString());
     }
     queueCv.notify_one();
+
+    LogBroadcaster::instance().publish(formatted, static_cast<int>(type));
 }
 
 } // namespace Core

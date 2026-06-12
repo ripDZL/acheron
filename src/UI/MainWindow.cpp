@@ -24,6 +24,7 @@
 #include "Core/TypingTracker.hpp"
 #include "Core/Logging.hpp"
 #include "Core/ReadStateManager.hpp"
+#include "LogViewer/LogViewer.hpp"
 #include "Discord/Events.hpp"
 #include "TypingIndicator.hpp"
 #include "SlowModeIndicator.hpp"
@@ -238,6 +239,20 @@ void MainWindow::markAllChannelsAsRead()
     for (auto it = byAccount.constBegin(); it != byAccount.constEnd(); ++it) {
         if (ClientInstance *instance = session->client(it.key()))
             instance->readState()->markChannelsAsRead(it.value());
+    }
+}
+
+void MainWindow::toggleLogViewer()
+{
+    if (!logViewer)
+        logViewer = new LogViewer();
+
+    if (logViewer->isVisible()) {
+        logViewer->close();
+    } else {
+        logViewer->show();
+        logViewer->raise();
+        logViewer->activateWindow();
     }
 }
 
@@ -1172,6 +1187,12 @@ void MainWindow::setupMenu()
     auto *settingsAction = new QAction(tr("&Settings"), this);
     connect(settingsAction, &QAction::triggered, this, &MainWindow::openSettingsWindow);
     viewMenu->addAction(settingsAction);
+
+    auto *eventLogAction = new QAction(tr("&Event Log"), this);
+    eventLogAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_L));
+    connect(eventLogAction, &QAction::triggered, this, &MainWindow::toggleLogViewer);
+    viewMenu->addAction(eventLogAction);
+    addAction(eventLogAction); // make Ctrl+L work window-wide
 
     // Top-level "Mark as Read" button (sits to the right of the View menu) that
     // marks every channel and DM across all accounts as read.

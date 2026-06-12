@@ -36,6 +36,7 @@ class ConnectionBanner;
 class VoiceStatusBar;
 #endif
 class TabBar;
+class LogViewer;
 struct TabEntry;
 } // namespace UI
 } // namespace Acheron
@@ -62,6 +63,7 @@ private:
     void switchActiveInstance(Core::ClientInstance *instance);
     void saveTabSession();
     void markAllChannelsAsRead();
+    void toggleLogViewer();
     void setupPermanentConnections(Core::ClientInstance *instance);
     void switchToTabEntry(const TabEntry &entry);
     void activateChannel(const TabEntry &entry);
@@ -83,6 +85,7 @@ private:
     ChatView *chatView;
     ChatModel *chatModel;
     ChatDelegate *chatDelegate = nullptr;
+    LogViewer *logViewer = nullptr;
 
     ChannelTreeView *channelTree;
     ChannelDelegate *channelDelegate = nullptr;

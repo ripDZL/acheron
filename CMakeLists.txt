@@ -93,6 +93,7 @@ set(PROJECT_SOURCES
     src/Core/ClientInstance.cpp
     src/Core/Session.cpp
     src/Core/Logging.cpp
+    src/Core/LogBroadcaster.cpp
     src/Core/MessageManager.cpp
     src/Core/ImageManager.cpp
     src/Core/UserManager.cpp
@@ -112,6 +113,7 @@ set(PROJECT_SOURCES
     src/Core/Theme/Stylesheet.cpp
     src/Core/Theme/Fonts.cpp
     src/UI/MainWindow.cpp
+    src/UI/LogViewer/LogViewer.cpp
     src/UI/BrowserCaptchaResolver.cpp
     src/UI/TypingIndicator.cpp
     src/UI/SlowModeIndicator.cpp
