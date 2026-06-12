@@ -16,7 +16,9 @@ class ChannelFilterProxyModel : public QSortFilterProxyModel
 public:
     enum Roles {
         SelectedRole = Qt::UserRole,
-        HiddenChannelRole = Qt::UserRole + 1, // channel shown but user lacks VIEW_CHANNEL
+        // Must not collide with ChannelTreeModel's roles (Qt::UserRole .. +11),
+        // which are passed through this proxy; use a high offset.
+        HiddenChannelRole = Qt::UserRole + 100, // channel shown but user lacks VIEW_CHANNEL
     };
 
     // When enabled, channels the user cannot view are shown (locked) instead of
