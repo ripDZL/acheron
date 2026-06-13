@@ -131,7 +131,7 @@ QByteArray RemoteAuthClient::publicKeyDer() const
     int len = i2d_PUBKEY(pkey, nullptr);
     if (len <= 0)
         return {};
-    QByteArray out(len, Qt::Uninitialized);
+    QByteArray out(len, char(0)); // Qt5 compat: Qt::Uninitialized is Qt6-only
     auto *p = reinterpret_cast<unsigned char *>(out.data());
     if (i2d_PUBKEY(pkey, &p) <= 0)
         return {};
@@ -148,7 +148,7 @@ QByteArray RemoteAuthClient::decrypt(const QByteArray &in) const
     if (EVP_PKEY_decrypt(decCtx, nullptr, &outlen, inp, in.size()) <= 0)
         return {};
 
-    QByteArray out(static_cast<int>(outlen), Qt::Uninitialized);
+    QByteArray out(static_cast<int>(outlen), char(0)); // Qt5 compat
     if (EVP_PKEY_decrypt(decCtx, reinterpret_cast<unsigned char *>(out.data()), &outlen, inp,
                          in.size()) <= 0)
         return {};
