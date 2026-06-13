@@ -72,7 +72,7 @@ ChatModel::ChatModel(Core::ImageManager *imageManager, QObject *parent)
                 }
 
                 // custom emoji in message content and embed text
-                if (url.host() == u"cdn.discordapp.com" && url.path().startsWith(u"/emojis/")) {
+                if (url.host() == QLatin1String("cdn.discordapp.com") && url.path().startsWith(QLatin1String("/emojis/"))) {
                     QString urlStr = url.toString();
                     for (int row = 0; row < messages.size(); ++row) {
                         const auto &msg = messages[row];

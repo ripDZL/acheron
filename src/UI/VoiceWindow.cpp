@@ -1,4 +1,5 @@
 #include "VoiceWindow.hpp"
+#include "Core/Qt5Compat.hpp"
 
 #include "Core/AV/VoiceManager.hpp"
 #include "Core/AV/AudioDevicePrefs.hpp"
@@ -531,7 +532,7 @@ void VoiceWindow::setupUi()
     auto *pttKeyLabel = new QLabel(tr("PTT Key:"), this);
     pttKeyLabel->setFixedWidth(60);
     pttKeyEdit = new QKeySequenceEdit(this);
-    pttKeyEdit->setMaximumSequenceLength(1);
+    ACHERON_SET_MAX_SEQ_LEN(pttKeyEdit, 1);
     pttKeyEdit->setToolTip(tr("Click here then press the key you want to use for Push to Talk"));
     pttKeyEdit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     pttUnbindBtn = new QPushButton(tr("Unbind"), this);
@@ -586,7 +587,7 @@ void VoiceWindow::setupUi()
     connect(pttKeyEdit, &QKeySequenceEdit::keySequenceChanged,
             this, [this](const QKeySequence &seq) {
         if (!seq.isEmpty()) {
-            pttKey = seq[0].key();
+            pttKey = ACHERON_KEY_INT(seq, 0);
         } else {
             pttKey = 0;
         }

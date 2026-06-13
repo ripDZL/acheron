@@ -265,7 +265,7 @@ QString ImageManager::getCachePath(const QUrl &url, const QSize &size) const
 bool ImageManager::isDiscordProxyUrl(const QUrl &url)
 {
     QString host = url.host();
-    return host == u"media.discordapp.net" || host.startsWith(u"images-ext-");
+    return host == QLatin1String("media.discordapp.net") || host.startsWith(QLatin1String("images-ext-"));
 }
 
 QUrl ImageManager::buildOptimizedUrl(const QUrl &proxyUrl, const QSize &displaySize, qreal dpr)

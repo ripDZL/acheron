@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Qt5Compat.hpp"
 #include <QtWidgets>
 #include <QCache>
 #include <QTextDocument>

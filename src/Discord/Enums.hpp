@@ -1,6 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include <QtGlobal>
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+#include "Core/Flags64.hpp"
+#endif
 
 namespace Acheron {
 namespace Discord {
@@ -371,8 +376,13 @@ enum class Permission : quint64 {
     PIN_MESSAGES = 1ULL << 51,
     BYPASS_SLOWMODE = 1ULL << 52,
 };
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 Q_DECLARE_FLAGS(Permissions, Permission);
 Q_DECLARE_OPERATORS_FOR_FLAGS(Permissions);
+#else
+using Permissions = Flags64<Permission>;
+#endif
 
 constexpr Permissions ALL_PERMISSIONS = Permissions::fromInt(0xFFFFFFFFFFFFFFFFULL);
 constexpr Permissions NO_PERMISSIONS = Permissions::fromInt(0ULL);

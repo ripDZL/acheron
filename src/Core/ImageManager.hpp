@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Qt5Compat.hpp"
 #include <QObject>
 #include <QString>
 #include <QUrl>

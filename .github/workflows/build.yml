@@ -323,3 +323,93 @@ jobs:
         with:
           name: acheron-macos
           path: acheron-macos
+
+  build-linux-qt5:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libsecret-1-dev zlib1g-dev
+
+      - name: Install Qt 5
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          cache: true
+
+      - name: Bootstrap vcpkg
+        run: |
+          git -C vendor/vcpkg fetch --unshallow
+          vendor/vcpkg/bootstrap-vcpkg.sh
+
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: build/vcpkg_installed
+          key: vcpkg-x64-linux-qt5-${{ hashFiles('vcpkg.json') }}
+
+      - name: Install curl-impersonate
+        run: |
+          curl -L -o libcurl-impersonate.tar.gz \
+            "https://github.com/lexiforest/curl-impersonate/releases/download/${{ env.CURL_IMPERSONATE_VERSION }}/libcurl-impersonate-${{ env.CURL_IMPERSONATE_VERSION }}.x86_64-linux-gnu.tar.gz"
+          mkdir -p curl-impersonate
+          tar -xzf libcurl-impersonate.tar.gz -C curl-impersonate
+          KEEP_FLAGS=$(nm --defined-only -g curl-impersonate/libcurl-impersonate.a \
+            | awk '{print $NF}' | grep '^curl_' | sort -u \
+            | sed 's/^/--keep-global-symbol=/' | tr '\n' ' ')
+          objcopy $KEEP_FLAGS \
+            curl-impersonate/libcurl-impersonate.a \
+            curl-impersonate/libcurl-impersonate-local.a
+          sudo cp curl-impersonate/libcurl-impersonate-local.a /usr/local/lib/libcurl-impersonate.a
+
+      - name: Configure
+        run: >
+          cmake -B build -S .
+          -DCMAKE_BUILD_TYPE=Release
+          -DVCPKG_TARGET_TRIPLET=x64-linux
+          -DCMAKE_PREFIX_PATH="$Qt5_DIR"
+          -DCURL_LIBRARY=/usr/local/lib/libcurl-impersonate.a
+
+      - name: Build
+        run: cmake --build build --parallel $(nproc)
+
+      - name: Prepare artifact
+        run: |
+          out="acheron-linux-qt5"
+          mkdir -p "$out/lib" "$out/plugins"
+          cp build/acheron "$out/"
+          [ -d build/certs ] && cp -r build/certs "$out/"
+          [ -d build/fonts ] && cp -r build/fonts "$out/"
+          for lib in Core Gui Widgets Network Sql Concurrent DBus XcbQpa; do
+            f="$Qt5_DIR/lib/libQt5${lib}.so.5"
+            [ -f "$f" ] && cp "$f" "$out/lib/"
+          done
+          for pdir in platforms imageformats sqldrivers; do
+            if [ -d "$Qt5_DIR/plugins/$pdir" ]; then
+              mkdir -p "$out/plugins/$pdir"
+              cp "$Qt5_DIR/plugins/$pdir"/*.so "$out/plugins/$pdir/" 2>/dev/null || true
+            fi
+          done
+          for f in "$Qt5_DIR"/lib/libicu*.so.*; do
+            [ -f "$f" ] && cp "$f" "$out/lib/"
+          done
+          cat > "$out/acheron.sh" <<'SCRIPT'
+          #!/bin/bash
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          export LD_LIBRARY_PATH="$DIR/lib:$LD_LIBRARY_PATH"
+          export QT_PLUGIN_PATH="$DIR/plugins"
+          exec "$DIR/acheron" "$@"
+          SCRIPT
+          chmod +x "$out/acheron.sh"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: acheron-linux-qt5
+          path: acheron-linux-qt5

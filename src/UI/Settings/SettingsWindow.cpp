@@ -1,4 +1,5 @@
 #include "SettingsWindow.hpp"
+#include "Core/Qt5Compat.hpp"
 
 #include "AppearancePage.hpp"
 #include "UI/TypingIndicator.hpp"
@@ -390,7 +391,7 @@ void SettingsWindow::buildAudioPage()
 
     auto *pttRow = new QHBoxLayout;
     pttHotkeyEdit = new QKeySequenceEdit(page);
-    pttHotkeyEdit->setMaximumSequenceLength(1);
+    ACHERON_SET_MAX_SEQ_LEN(pttHotkeyEdit, 1);
     pttHotkeyEdit->setToolTip(tr("Click here, then press the key to use for Push to Talk."));
     pttHotkeyClear = new QPushButton(tr("Clear"), page);
     pttRow->addWidget(pttHotkeyEdit, 1);
@@ -439,7 +440,7 @@ void SettingsWindow::buildAudioPage()
         pttHotkeyClear->setEnabled(ptt && !pttHotkeyEdit->keySequence().isEmpty());
     });
     connect(pttHotkeyEdit, &QKeySequenceEdit::keySequenceChanged, this, [this](const QKeySequence &seq) {
-        const int key = seq.isEmpty() ? 0 : seq[0].key();
+        const int key = seq.isEmpty() ? 0 : ACHERON_KEY_INT(seq, 0);
         QSettings().setValue("voice/ptt_key", key);
         pttHotkeyClear->setEnabled(micModeCombo->currentIndex() == 1 && key != 0);
     });
