@@ -30,7 +30,7 @@ if(ENABLE_VOICE)
     find_package(Opus CONFIG REQUIRED)
 endif()
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Gui Widgets Network Sql Test LinguistTools)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Gui Widgets Network Sql Test)
 find_package(Qt${QT_VERSION_MAJOR}
     COMPONENTS
         Core
@@ -40,10 +40,12 @@ find_package(Qt${QT_VERSION_MAJOR}
         Sql
         Concurrent
         Test
-        LinguistTools
 )
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS LinguistTools QUIET)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS ZlibPrivate QUIET)
-qt_standard_project_setup(I18N_TRANSLATED_LANGUAGES en)
+if(QT_VERSION_MAJOR EQUAL 6)
+    qt_standard_project_setup(I18N_TRANSLATED_LANGUAGES en)
+endif()
 
 # If Qt::ZlibPrivate is not available, create a QtZlib compatibility include
 # directory so that #include <QtZlib/zlib.h> resolves using system zlib.
@@ -232,7 +234,9 @@ if(BUILD_TESTS)
     add_test(NAME MarkdownTests COMMAND TestMarkdown)
 endif()
 
-qt_add_translations(${PROJECT_NAME})
+if(QT_VERSION_MAJOR EQUAL 6)
+    qt_add_translations(${PROJECT_NAME})
+endif()
 
 # --- RNNoise (vendored): neural-network noise suppression for the microphone ---
 # vcpkg's rnnoise port is !windows, so we compile the upstream C sources directly

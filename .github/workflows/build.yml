@@ -373,7 +373,6 @@ jobs:
           cmake -B build -S .
           -DCMAKE_BUILD_TYPE=Release
           -DVCPKG_TARGET_TRIPLET=x64-linux
-          -DCMAKE_PREFIX_PATH="$Qt5_DIR"
           -DCURL_LIBRARY=/usr/local/lib/libcurl-impersonate.a
 
       - name: Build
@@ -387,16 +386,16 @@ jobs:
           [ -d build/certs ] && cp -r build/certs "$out/"
           [ -d build/fonts ] && cp -r build/fonts "$out/"
           for lib in Core Gui Widgets Network Sql Concurrent DBus XcbQpa; do
-            f="$Qt5_DIR/lib/libQt5${lib}.so.5"
+            f="$QTDIR/lib/libQt5${lib}.so.5"
             [ -f "$f" ] && cp "$f" "$out/lib/"
           done
           for pdir in platforms imageformats sqldrivers; do
-            if [ -d "$Qt5_DIR/plugins/$pdir" ]; then
+            if [ -d "$QTDIR/plugins/$pdir" ]; then
               mkdir -p "$out/plugins/$pdir"
-              cp "$Qt5_DIR/plugins/$pdir"/*.so "$out/plugins/$pdir/" 2>/dev/null || true
+              cp "$QTDIR/plugins/$pdir"/*.so "$out/plugins/$pdir/" 2>/dev/null || true
             fi
           done
-          for f in "$Qt5_DIR"/lib/libicu*.so.*; do
+          for f in "$QTDIR"/lib/libicu*.so.*; do
             [ -f "$f" ] && cp "$f" "$out/lib/"
           done
           cat > "$out/acheron.sh" <<'SCRIPT'
