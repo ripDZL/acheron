@@ -2,14 +2,8 @@
 #  pragma warning(push, 0)
 #endif
 
-#define MA_NO_DECODING
-#define MA_NO_ENCODING
-#define MA_NO_GENERATION
-#define MA_NO_RESOURCE_MANAGER
-#define MA_NO_NODE_GRAPH
-#define MA_NO_ENGINE
-#define MINIAUDIO_IMPLEMENTATION
-#include "miniaudio.h"
+// Declarations only; the implementation lives in MiniaudioImpl.cpp.
+#include "Core/AV/MiniaudioConfig.hpp"
 
 #ifdef _MSC_VER
 #  pragma warning(pop)

@@ -62,16 +62,25 @@ jobs:
             -DBUILD_TESTS=ON
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }} --parallel
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel 2>&1 | Tee-Object -FilePath build-log.txt
 
       - name: Test
-        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure 2>&1 | Tee-Object -FilePath build-log.txt -Append
 
       - name: Deploy Qt
         shell: pwsh
         run: |
           $exe = "${{ github.workspace }}/build/${{ matrix.build_type }}/acheron.exe"
           windeployqt --no-translations --no-opengl-sw $exe
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-windows-${{ matrix.build_type }}
+          path: build-log.txt
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Prepare artifact
         shell: pwsh
@@ -154,10 +163,23 @@ jobs:
           -DBUILD_TESTS=ON
 
       - name: Build
-        run: cmake --build build --parallel $(nproc)
+        run: |
+          set -o pipefail
+          cmake --build build --parallel $(nproc) 2>&1 | tee build-log.txt
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: |
+          set -o pipefail
+          ctest --test-dir build --output-on-failure 2>&1 | tee -a build-log.txt
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-linux
+          path: build-log.txt
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Prepare artifact
         run: |
@@ -269,10 +291,23 @@ jobs:
           -DBUILD_TESTS=ON
 
       - name: Build
-        run: cmake --build build --parallel $(sysctl -n hw.logicalcpu)
+        run: |
+          set -o pipefail
+          cmake --build build --parallel $(sysctl -n hw.logicalcpu) 2>&1 | tee build-log.txt
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: |
+          set -o pipefail
+          ctest --test-dir build --output-on-failure 2>&1 | tee -a build-log.txt
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-macos
+          path: build-log.txt
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Prepare artifact
         run: |

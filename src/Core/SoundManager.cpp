@@ -1,20 +1,11 @@
-// SoundManager owns a private miniaudio engine with decoding enabled. This is
-// a separate translation unit from MiniaudioAudioBackend.cpp (which compiles
-// miniaudio with MA_NO_ENGINE/MA_NO_DECODING for the voice path), so both
-// MINIAUDIO_IMPLEMENTATION units coexist with internal linkage.
+// SoundManager plays short notification sounds via miniaudio's high-level
+// engine API. The miniaudio implementation is compiled once in
+// MiniaudioImpl.cpp; this file (and MiniaudioAudioBackend.cpp) include
+// MiniaudioConfig.hpp for declarations only, so all ma_* symbols have a single
+// definition program-wide.
 
-#ifdef _MSC_VER
-#  pragma warning(push, 0)
-#endif
-
-#define MA_NO_ENCODING
-#define MA_NO_GENERATION
-#define MINIAUDIO_IMPLEMENTATION
-#include "miniaudio.h"
-
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif
+// Declarations only; the implementation lives in MiniaudioImpl.cpp.
+#include "Core/AV/MiniaudioConfig.hpp"
 
 #include "SoundManager.hpp"
 

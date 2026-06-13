@@ -185,6 +185,7 @@ if(ENABLE_VOICE)
         src/Core/AV/VoiceManager.cpp
         src/Core/AV/AudioPipeline.cpp
         src/Core/AV/IAudioBackend.cpp
+        src/Core/AV/MiniaudioImpl.cpp
         src/Core/AV/MiniaudioAudioBackend.cpp
         src/Core/SoundManager.cpp
         src/Core/AV/OpusEncoder.cpp
