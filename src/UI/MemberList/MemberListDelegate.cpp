@@ -141,11 +141,11 @@ void MemberListDelegate::paintMember(QPainter *painter, const QStyleOptionViewIt
     x += AvatarSize + AvatarTextSpacing;
 
     // Platform indicators, right-aligned; reserve their width before eliding name.
-    QVector<Core::PlatformStatus> platforms;
-    if (presenceManager) {
-        Core::Snowflake uid(index.data(MemberListModel::UserIdRole).toULongLong());
-        platforms = presenceManager->platformsOf(uid);
-    }
+    static const QVector<Core::PlatformStatus> emptyPlatforms;
+    const auto &platforms = presenceManager
+            ? presenceManager->platformsOf(
+                      Core::Snowflake(index.data(MemberListModel::UserIdRole).toULongLong()))
+            : emptyPlatforms;
     constexpr int PlatIconSize = 14;
     constexpr int PlatIconGap = 2;
     const int platformsWidth =

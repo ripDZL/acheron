@@ -79,6 +79,7 @@ LogViewer::LogViewer(QWidget *parent) : QWidget(parent)
 
     rebuild();
 
+    Core::LogBroadcaster::instance().addListener();
     connect(&Core::LogBroadcaster::instance(), &Core::LogBroadcaster::appended, this,
             &LogViewer::onAppended);
     connect(m_levelFilter, &QComboBox::currentIndexChanged, this, [this]() { rebuild(); });
@@ -86,6 +87,11 @@ LogViewer::LogViewer(QWidget *parent) : QWidget(parent)
     connect(copyButton, &QPushButton::clicked, this,
             [this]() { QApplication::clipboard()->setText(m_text->toPlainText()); });
     connect(clearButton, &QPushButton::clicked, this, [this]() { m_text->clear(); });
+}
+
+LogViewer::~LogViewer()
+{
+    Core::LogBroadcaster::instance().removeListener();
 }
 
 bool LogViewer::passes(const QString &line, int type) const

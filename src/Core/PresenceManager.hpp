@@ -44,9 +44,13 @@ public:
 
     void update(Snowflake userId, const QString &status) { update(userId, presenceFromString(status)); }
 
-    [[nodiscard]] QVector<PlatformStatus> platformsOf(Snowflake userId) const
+    [[nodiscard]] const QVector<PlatformStatus> &platformsOf(Snowflake userId) const
     {
-        return m_platforms.value(userId);
+        auto it = m_platforms.constFind(userId);
+        if (it != m_platforms.constEnd())
+            return it.value();
+        static const QVector<PlatformStatus> empty;
+        return empty;
     }
 
     // platformStatuses: list of (platform-name, status-string) from a presence's
@@ -65,12 +69,13 @@ public:
             next.append({ platformFromString(name), s });
         }
 
-        if (m_platforms.value(userId) == next)
+        auto existing = m_platforms.constFind(userId);
+        if (existing != m_platforms.constEnd() && *existing == next)
             return;
         if (next.isEmpty())
             m_platforms.remove(userId);
         else
-            m_platforms.insert(userId, next);
+            m_platforms.insert(userId, std::move(next));
         emit presenceChanged(userId, statusOf(userId));
     }
 

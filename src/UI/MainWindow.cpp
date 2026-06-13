@@ -92,6 +92,17 @@ MainWindow::MainWindow(Session *session, QWidget *parent) : QMainWindow(parent),
     setupUi();
     setupMenu();
     setWindowIcon(QIcon(kAppIconResource));
+
+    // Coalesce presence-change repaints: during READY hundreds of events fire
+    // in rapid succession; without this, each triggers 3 full viewport repaints.
+    presenceRepaintTimer = new QTimer(this);
+    presenceRepaintTimer->setSingleShot(true);
+    presenceRepaintTimer->setInterval(50);
+    connect(presenceRepaintTimer, &QTimer::timeout, this, [this]() {
+        memberListView->viewport()->update();
+        chatView->viewport()->update();
+        channelTree->viewport()->update();
+    });
     setupTrayIcon();
 
     if (QSettings().value("general/show_accounts_on_launch", false).toBool())
@@ -534,9 +545,7 @@ void MainWindow::switchActiveInstance(Core::ClientInstance *newInstance)
     channelDelegate->setPresenceManager(currentInstance->presences());
     connect(currentInstance->presences(), &Core::PresenceManager::presenceChanged, this,
             [this]() {
-                memberListView->viewport()->update();
-                chatView->viewport()->update();
-                channelTree->viewport()->update();
+                presenceRepaintTimer->start(); // coalesces rapid-fire events
             });
     connect(memberListView, &MemberListView::visibleRangeChanged,
             currentInstance->memberList(), &Core::MemberListManager::updateSubscriptionRange);

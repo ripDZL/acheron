@@ -17,6 +17,7 @@ class LogViewer : public QWidget
     Q_OBJECT
 public:
     explicit LogViewer(QWidget *parent = nullptr);
+    ~LogViewer() override;
 
 private:
     void rebuild();                            // re-render from the broadcaster snapshot

@@ -34,8 +34,13 @@ public:
             while (m_recent.size() > kMaxRecent)
                 m_recent.pop_front();
         }
-        emit appended(line, type);
+        if (m_listeners.load(std::memory_order_relaxed) > 0)
+            emit appended(line, type);
     }
+
+    // Call from the viewer's constructor / destructor to gate the signal.
+    void addListener() { m_listeners.fetch_add(1, std::memory_order_relaxed); }
+    void removeListener() { m_listeners.fetch_sub(1, std::memory_order_relaxed); }
 
     QVector<Entry> snapshot()
     {
@@ -55,6 +60,7 @@ private:
 
     std::mutex m_mutex;
     std::deque<Entry> m_recent;
+    std::atomic<int> m_listeners{ 0 };
     static constexpr size_t kMaxRecent = 5000;
 };
 

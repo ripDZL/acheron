@@ -456,10 +456,12 @@ void ChannelDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
     }
 
     // platform indicators for DM recipients (right-aligned, all active platforms)
-    QVector<Core::PlatformStatus> dmPlatforms;
-    if (node->type == ChannelNode::Type::DMChannel && presenceManager &&
-        node->dmRecipientId.isValid())
-        dmPlatforms = presenceManager->platformsOf(node->dmRecipientId);
+    static const QVector<Core::PlatformStatus> emptyPlatforms;
+    const auto &dmPlatforms =
+            (node->type == ChannelNode::Type::DMChannel && presenceManager &&
+             node->dmRecipientId.isValid())
+            ? presenceManager->platformsOf(node->dmRecipientId)
+            : emptyPlatforms;
     constexpr int PlatIconSize = 13;
     constexpr int PlatIconGap = 2;
     const int platformsWidth =

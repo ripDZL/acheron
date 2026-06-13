@@ -126,6 +126,7 @@ private slots:
 private:
     Core::Session *session;
     Core::ClientInstance *currentInstance = nullptr;
+    QTimer *presenceRepaintTimer = nullptr; // coalesces presence-change repaints
 
     Core::Snowflake cachedGuildId = Core::Snowflake::Invalid;
     // Set when a previous session's tabs were restored at startup; the saved active

@@ -233,10 +233,11 @@ void ChatDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
         int usernameWidth = headerFm.horizontalAdvance(username);
 
         // platform indicators after the username (all active platforms)
-        QVector<Core::PlatformStatus> platforms;
-        if (presenceManager)
-            platforms = presenceManager->platformsOf(
-                    Core::Snowflake(index.data(ChatModel::UserIdRole).toULongLong()));
+        static const QVector<Core::PlatformStatus> emptyPlatforms;
+        const auto &platforms = presenceManager
+                ? presenceManager->platformsOf(
+                          Core::Snowflake(index.data(ChatModel::UserIdRole).toULongLong()))
+                : emptyPlatforms;
         constexpr int PlatIconSize = 14;
         constexpr int PlatIconGap = 2;
         int platformsBlock = 0;
