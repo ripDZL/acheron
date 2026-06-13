@@ -56,7 +56,7 @@ const std::vector<TokenDescriptor> &registry();
 const TokenDescriptor *findById(const QString &id);
 const TokenDescriptor &descriptor(Token token);
 
-inline QHashSeed qHash(Token key, QHashSeed seed = 0) noexcept
+inline AHashSeed qHash(Token key, AHashSeed seed = 0) noexcept
 {
     return ::qHash(static_cast<std::underlying_type_t<Token>>(key), seed);
 }

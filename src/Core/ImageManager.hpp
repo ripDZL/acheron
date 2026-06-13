@@ -83,7 +83,7 @@ private:
 
 // Qt5 QHash requires a free qHash; Qt6 also falls back to std::hash but a
 // qHash is more portable. Keep the std::hash specialization for compatibility.
-inline QHashSeed qHash(const Acheron::Core::ImageRequestKey &key, QHashSeed seed = 0)
+inline AHashSeed qHash(const Acheron::Core::ImageRequestKey &key, AHashSeed seed = 0)
 {
     return qHashMulti(seed, key.url, key.size);
 }

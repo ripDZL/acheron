@@ -30,7 +30,7 @@ const std::vector<FontDescriptor> &fontRegistry();
 const FontDescriptor *findFontById(const QString &id);
 const FontDescriptor &fontDescriptor(FontRole role);
 
-inline QHashSeed qHash(FontRole key, QHashSeed seed = 0) noexcept
+inline AHashSeed qHash(FontRole key, AHashSeed seed = 0) noexcept
 {
     return ::qHash(static_cast<std::underlying_type_t<FontRole>>(key), seed);
 }

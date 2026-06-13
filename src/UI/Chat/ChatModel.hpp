@@ -144,7 +144,7 @@ struct DocCacheKey
     }
 };
 
-inline QHashSeed qHash(const DocCacheKey &k, QHashSeed seed = 0)
+inline AHashSeed qHash(const DocCacheKey &k, AHashSeed seed = 0)
 {
     return qHashMulti(seed, quint64(k.messageId), k.subId);
 }

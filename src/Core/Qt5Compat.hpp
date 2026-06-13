@@ -8,9 +8,9 @@
 // --- qHash seed/return type ---
 // Qt6 uses size_t; Qt5 uses uint.
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-using QHashSeed = size_t;
+using AHashSeed = size_t;
 #else
-using QHashSeed = uint;
+using AHashSeed = uint;
 #endif
 
 // --- qHashMulti (Qt6-only) ---
@@ -20,7 +20,7 @@ using QHashSeed = uint;
 // Qt5 qHash uses uint; the callers below use size_t (Qt6 style).
 // Use size_t uniformly; Qt5's uint is implicitly convertible.
 template <typename... Args>
-inline QHashSeed qHashMulti(QHashSeed seed, const Args &...args)
+inline AHashSeed qHashMulti(AHashSeed seed, const Args &...args)
 {
     int dummy[] = { 0, (seed = seed ^ (qHash(args, static_cast<uint>(seed)) + 0x9e3779b9 + (seed << 6) + (seed >> 2)), 0)... };
     (void) dummy;

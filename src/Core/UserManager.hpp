@@ -24,7 +24,7 @@ struct MemberKey
     }
 };
 
-inline QHashSeed qHash(const MemberKey &key, QHashSeed seed = 0)
+inline AHashSeed qHash(const MemberKey &key, AHashSeed seed = 0)
 {
     return qHashMulti(seed, key.guildId, key.userId);
 }
