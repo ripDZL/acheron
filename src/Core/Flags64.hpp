@@ -69,7 +69,7 @@ template <typename Enum>
 }
 
 template <typename Enum>
-[[nodiscard]] inline size_t qHash(Flags64<Enum> flags, uint seed = 0) noexcept
+[[nodiscard]] inline uint qHash(Flags64<Enum> flags, uint seed = 0) noexcept
 {
     return qHash(flags.toInt(), seed);
 }

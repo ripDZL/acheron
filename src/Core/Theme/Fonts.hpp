@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Qt5Compat.hpp"
 #include <QFont>
 #include <QHashFunctions>
 #include <QString>
@@ -29,7 +30,7 @@ const std::vector<FontDescriptor> &fontRegistry();
 const FontDescriptor *findFontById(const QString &id);
 const FontDescriptor &fontDescriptor(FontRole role);
 
-inline size_t qHash(FontRole key, size_t seed = 0) noexcept
+inline QHashSeed qHash(FontRole key, QHashSeed seed = 0) noexcept
 {
     return ::qHash(static_cast<std::underlying_type_t<FontRole>>(key), seed);
 }

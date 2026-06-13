@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/Qt5Compat.hpp"
 #include <QColor>
 #include <QHashFunctions>
 #include <QPalette>
@@ -55,7 +56,7 @@ const std::vector<TokenDescriptor> &registry();
 const TokenDescriptor *findById(const QString &id);
 const TokenDescriptor &descriptor(Token token);
 
-inline size_t qHash(Token key, size_t seed = 0) noexcept
+inline QHashSeed qHash(Token key, QHashSeed seed = 0) noexcept
 {
     return ::qHash(static_cast<std::underlying_type_t<Token>>(key), seed);
 }
