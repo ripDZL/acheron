@@ -11,6 +11,11 @@ namespace Core {
 UserManager::UserManager(Snowflake accountId, QObject *parent)
     : QObject(parent), userRepo(accountId), memberRepo(accountId)
 {
+    // Default QCache maxCost is 100 items, which thrashes in busy servers
+    // (each paint queries getUser/getMember for visible rows). 500 items ≈
+    // 100 KB for users, 200 KB for members — well worth the memory.
+    userCache.setMaxCost(500);
+    memberCache.setMaxCost(500);
 }
 
 UserManager::~UserManager() { }

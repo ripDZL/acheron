@@ -18,7 +18,7 @@ namespace Core {
 ImageManager::ImageManager(QObject *parent) : QObject(parent)
 {
     networkManager = new QNetworkAccessManager(this);
-    cache.setMaxCost(300);
+    cache.setMaxCost(1000); // ~4 MB at 32×32 RGBA; prevents thrashing in busy channels
 
     if (!tempDir.isValid())
         qCWarning(LogCore) << "Failed to create temp directory for image cache";

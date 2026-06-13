@@ -243,6 +243,7 @@ private:
     QVector<Discord::Message> messages;
     mutable QHash<Snowflake, QSize> sizeCache;
     mutable QHash<Snowflake, QList<EmbedData>> embedCache;
+    mutable QHash<Snowflake, QList<AttachmentData>> attachmentCache;
     mutable QCache<DocCacheKey, QTextDocument> docCache{ 500 };
     mutable int docCacheWidth = 0;
 
