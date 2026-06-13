@@ -66,3 +66,12 @@ inline AHashSeed qHashMulti(AHashSeed seed, const Args &...args)
 #else
 #define ACHERON_ANCHOR_AT_OFFSET QRegularExpression::AnchorAtOffsetMatchOption
 #endif
+
+// --- qHash(QSize) (Qt6 has it; Qt5 does not) ---
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+#include <QSize>
+inline uint qHash(const QSize &s, uint seed = 0) noexcept
+{
+    return qHash(QPair<int,int>(s.width(), s.height()), seed);
+}
+#endif

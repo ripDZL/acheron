@@ -234,7 +234,7 @@ protected:
         } else if constexpr (std::is_same_v<T, QString>) {
             return value.toString();
         } else if constexpr (QFlagType<T>) {
-            return T::fromInt(value.toInt());
+            return T(value.toInt());
         } else if constexpr (std::is_enum_v<T>) {
             return static_cast<T>(value.toInt());
         } else if constexpr (std::is_same_v<T, QByteArray>) {
