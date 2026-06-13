@@ -1,3 +1,6 @@
+#ifndef ACHERON_NO_VOICE
+#include "Core/SoundManager.hpp"
+#endif
 #include "Client.hpp"
 
 #include <QDebug>
@@ -199,6 +202,12 @@ void Client::onDisconnected(CloseCode code, const QString &reason)
         setState(Core::ConnectionState::Disconnected);
         return;
     }
+
+    // Non-fatal, not user-initiated: this is a genuine unexpected drop. Give an
+    // audio cue while the Gateway attempts to reconnect automatically.
+#ifndef ACHERON_NO_VOICE
+    Core::SoundManager::instance().play(Core::SoundManager::Sound::ConnectionLost);
+#endif
 
     // Non-fatal: Gateway will handle reconnection automatically
     // stateChanged(Connecting) is emitted via the reconnecting signal

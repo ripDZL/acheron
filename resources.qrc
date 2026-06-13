@@ -3,5 +3,8 @@
         <file>resources/placeholder.png</file>
         <file>acheron.ico</file>
         <file>acheron_debug.ico</file>
+        <file alias="sounds/User-Connect.wav">resources/sounds/User-Connect.wav</file>
+        <file alias="sounds/User-Disconnect.wav">resources/sounds/User-Disconnect.wav</file>
+        <file alias="sounds/connection-Lost.wav">resources/sounds/connection-Lost.wav</file>
     </qresource>
 </RCC>

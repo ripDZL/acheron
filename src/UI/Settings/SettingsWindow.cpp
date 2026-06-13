@@ -1,3 +1,4 @@
+#include "Core/SoundManager.hpp"
 #include "SettingsWindow.hpp"
 #include "Core/Qt5Compat.hpp"
 
@@ -398,6 +399,17 @@ void SettingsWindow::buildAudioPage()
     pttRow->addWidget(pttHotkeyClear);
     behForm->addRow(tr("Push to Talk Hotkey"), pttRow);
     layout->addLayout(behForm);
+
+    // --- Notifications ---
+    layout->addWidget(boldLabel(tr("Notifications")));
+    notificationSoundsCheckbox = new QCheckBox(
+            tr("Play sounds when users join or leave your voice channel, and when the "
+               "connection to Discord is lost"), page);
+    notificationSoundsCheckbox->setChecked(Core::SoundManager::soundsEnabled());
+    connect(notificationSoundsCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        Core::SoundManager::setSoundsEnabled(checked);
+    });
+    layout->addWidget(notificationSoundsCheckbox);
 
     auto *note = new QLabel(
             tr("Device and channel changes apply the next time you connect to voice. "

@@ -43,6 +43,7 @@ private:
 
     // discord
     QCheckBox *showNicknamesCheckbox = nullptr;
+    QCheckBox *notificationSoundsCheckbox = nullptr;
     QCheckBox *showTypingCheckbox = nullptr;
     QCheckBox *showHiddenChannelsCheckbox = nullptr;
     QSpinBox *avatarSizeSpin = nullptr;

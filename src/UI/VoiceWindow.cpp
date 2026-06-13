@@ -1,3 +1,4 @@
+#include "Core/SoundManager.hpp"
 #include "VoiceWindow.hpp"
 #include "Core/Qt5Compat.hpp"
 
@@ -976,6 +977,8 @@ void VoiceWindow::onParticipantJoined(Core::Snowflake userId)
     if (userWidgets.contains(userId))
         return;
 
+    Core::SoundManager::instance().play(Core::SoundManager::Sound::UserConnect);
+
     auto *widget = new VoiceUserWidget(userId, userListContainer);
 
     QString name = nameResolver ? nameResolver(userId) : QString::number(userId);
@@ -1021,6 +1024,8 @@ void VoiceWindow::onParticipantLeft(Core::Snowflake userId)
     auto it = userWidgets.find(userId);
     if (it == userWidgets.end())
         return;
+
+    Core::SoundManager::instance().play(Core::SoundManager::Sound::UserDisconnect);
 
     delete it.value();
     userWidgets.erase(it);
