@@ -278,9 +278,12 @@ jobs:
         run: |
           # Create a .app bundle manually since the binary isn't built as MACOSX_BUNDLE
           app="acheron-macos/Acheron.app/Contents"
-          mkdir -p "$app/MacOS" "$app/Frameworks" "$app/PlugIns"
+          mkdir -p "$app/MacOS" "$app/Frameworks" "$app/PlugIns" "$app/Resources"
 
           cp build/acheron "$app/MacOS/"
+
+          # App icon
+          cp acheron.icns "$app/Resources/"
 
           # Copy certs/fonts if present
           [ -d build/certs ] && cp -r build/certs "$app/MacOS/"
@@ -298,6 +301,8 @@ jobs:
             <string>com.acheron.app</string>
             <key>CFBundleName</key>
             <string>Acheron</string>
+            <key>CFBundleIconFile</key>
+            <string>acheron</string>
             <key>CFBundleVersion</key>
             <string>1.0</string>
             <key>CFBundlePackageType</key>
