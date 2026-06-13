@@ -58,3 +58,11 @@ inline AHashSeed qHashMulti(AHashSeed seed, const Args &...args)
 // Qt5: use QStringLiteral() or QLatin1String() instead. Most usages can be
 // replaced inline; this macro helps the few hot-path cases.
 // (Individual files fix u"" usages directly.)
+
+// --- QRegularExpression::AnchorAtOffsetMatchOption (Qt 6.0+) ---
+// Qt5 uses AnchoredMatchOption (deprecated in Qt6, renamed).
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+#define ACHERON_ANCHOR_AT_OFFSET QRegularExpression::AnchoredMatchOption
+#else
+#define ACHERON_ANCHOR_AT_OFFSET QRegularExpression::AnchorAtOffsetMatchOption
+#endif

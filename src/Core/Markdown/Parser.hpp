@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QRegularExpression>
+#include <QSet>
 #include <QVariantMap>
 
 namespace Acheron {
@@ -20,9 +21,10 @@ struct ParseState
     bool isInline = false;
     bool inTable = false;
     int key = 0;
-    QString prevCapture = "";
+    QString prevCapture;
     QVariantMap customState;
     QSet<QString> excludedRules;
+    ParseState() = default;
 };
 
 using Capture = QRegularExpressionMatch;
