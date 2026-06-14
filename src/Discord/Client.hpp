@@ -46,6 +46,8 @@ public:
 
     using MessagesCallback = std::function<void(const Core::Result<QList<Message>> &)>;
     void fetchLatestMessages(Snowflake channelId, int limit, MessagesCallback callback);
+    void fetchMessagesAround(Snowflake channelId, Snowflake aroundId, int limit,
+                             MessagesCallback callback);
     void fetchHistory(Snowflake channelId, Snowflake beforeId, int limit,
                       MessagesCallback callback);
 

@@ -742,6 +742,20 @@ void ChatModel::handleIncomingMessages(const Core::MessageRequestResult &result)
         endResetModel();
         break;
     };
+    case Discord::Client::MessageLoadType::Jump: {
+        // A jump loads a context window centered on a target message; replace
+        // the visible window with it (same as a fresh channel load).
+        beginResetModel();
+        sizeCache.clear();
+        embedCache.clear();
+        attachmentCache.clear();
+        docCache.clear();
+        pendingNonces.clear();
+        erroredNonces.clear();
+        messages = incomingMessages;
+        endResetModel();
+        break;
+    };
     case Discord::Client::MessageLoadType::History: {
         int numNew = incomingMessages.size();
 

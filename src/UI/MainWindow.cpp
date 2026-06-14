@@ -373,9 +373,12 @@ void MainWindow::navigateToSearchResult(Snowflake channelId, Snowflake messageId
         tabBar->openNewTab(entry);
         selectChannelInTree(channelId);
 
-        // Try to jump immediately (channel may already be loaded); otherwise
-        // remember it and the messagesReceived handler will jump once loaded.
+        // Try to jump immediately (channel may already be loaded). Otherwise
+        // remember the target; once the channel's messages arrive the
+        // messagesReceived handler jumps, or requests a context window centered
+        // on the message if it's outside the loaded range (deep history).
         pendingJumpMessageId = messageId;
+        jumpAroundRequested = false;
         if (messageId.isValid() && chatView->jumpToMessage(messageId))
             pendingJumpMessageId = Core::Snowflake::Invalid;
         return;
@@ -646,8 +649,16 @@ void MainWindow::switchActiveInstance(Core::ClientInstance *newInstance)
                 // messages have loaded.
                 if (result.success && pendingJumpMessageId.isValid()
                     && result.channelId == chatModel->getActiveChannelId()) {
-                    if (chatView->jumpToMessage(pendingJumpMessageId))
+                    if (chatView->jumpToMessage(pendingJumpMessageId)) {
                         pendingJumpMessageId = Core::Snowflake::Invalid;
+                        jumpAroundRequested = false;
+                    } else if (!jumpAroundRequested && currentInstance) {
+                        // Target isn't in the loaded window — fetch a context
+                        // window centered on it (deep history). Do this once.
+                        jumpAroundRequested = true;
+                        currentInstance->messages()->requestLoadAround(
+                                result.channelId, pendingJumpMessageId);
+                    }
                 }
             });
 

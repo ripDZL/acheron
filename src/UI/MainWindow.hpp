@@ -99,6 +99,7 @@ private:
     QuickSwitcher *quickSwitcher = nullptr;
     SearchPanel *searchPanel = nullptr;
     Core::Snowflake pendingJumpMessageId = Core::Snowflake::Invalid;
+    bool jumpAroundRequested = false;
 
     ChannelTreeView *channelTree;
     ChannelDelegate *channelDelegate = nullptr;

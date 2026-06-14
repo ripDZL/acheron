@@ -268,6 +268,26 @@ void MessageManager::requestLoadHistory(Snowflake channelId, Snowflake beforeId)
                          });
 }
 
+void MessageManager::requestLoadAround(Snowflake channelId, Snowflake messageId)
+{
+    if (!channelId.isValid() || !messageId.isValid())
+        return;
+
+    QPointer<MessageManager> guard = this;
+    client->fetchMessagesAround(
+            channelId, messageId, 50,
+            [this, guard, channelId](const Result<QList<Discord::Message>> &result) {
+                if (!guard)
+                    return;
+                if (!result.success()) {
+                    qWarning() << "Failed to fetch messages around" << result.error;
+                    return;
+                }
+                onApiMessagesReceived(result.value.value(),
+                                      Discord::Client::MessageLoadType::Jump, channelId);
+            });
+}
+
 void MessageManager::cacheMessages(Snowflake channelId, const QList<Discord::Message> &msgs)
 {
     if (msgs.isEmpty())

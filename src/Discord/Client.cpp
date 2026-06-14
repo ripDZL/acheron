@@ -108,6 +108,30 @@ void Client::fetchLatestMessages(Snowflake channelId, int limit, MessagesCallbac
     });
 }
 
+void Client::fetchMessagesAround(Snowflake channelId, Snowflake aroundId, int limit,
+                                 MessagesCallback callback)
+{
+    QString endpoint = "/channels/" + QString::number(channelId) + "/messages";
+    QUrlQuery query;
+    query.addQueryItem("around", QString::number(aroundId));
+    query.addQueryItem("limit", QString::number(limit));
+
+    httpClient->get(endpoint, query, [this, channelId, callback](const HttpResponse &response) {
+        if (!response.success) {
+            qCWarning(LogDiscord) << "Failed to fetch messages around: " << response.error;
+            callback({ {}, "Failed to fetch messages around: " + response.error });
+            return;
+        }
+
+        QList<Message> results;
+        QJsonArray arr = QJsonDocument::fromJson(response.body).array();
+        for (const QJsonValue &val : arr)
+            results.append(Message::fromJson(val.toObject()));
+
+        callback({ results });
+    });
+}
+
 void Client::fetchHistory(Snowflake channelId, Snowflake beforeId, int limit,
                           MessagesCallback callback)
 {

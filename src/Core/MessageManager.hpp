@@ -40,6 +40,10 @@ public:
 
     void requestLoadChannel(Snowflake channelId);
     void requestLoadHistory(Snowflake channelId, Snowflake beforeId);
+    // Loads a context window centered on a specific message (for search/reply
+    // jumps to messages outside the currently-loaded window). Results are
+    // emitted with MessageLoadType::Jump.
+    void requestLoadAround(Snowflake channelId, Snowflake messageId);
     void sendMessage(Snowflake channelId, const QString &content,
                      Snowflake replyToMessageId = Snowflake::Invalid);
 
