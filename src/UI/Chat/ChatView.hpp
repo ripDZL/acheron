@@ -54,6 +54,10 @@ public:
     void setCanPinMessages(bool canPin);
     void setCanManageMessages(bool canManage);
 
+    // Scrolls to the message with the given id (if currently loaded) and flashes
+    // a temporary highlight. Returns true if the message was found and shown.
+    bool jumpToMessage(Core::Snowflake messageId);
+
     // Chat wheel-scroll preferences (live, backed by QSettings)
     static double scrollSpeed();
     static void setScrollSpeed(double mult);

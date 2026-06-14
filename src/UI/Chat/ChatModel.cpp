@@ -553,6 +553,9 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
     }
     case MessageIdRole:
         return msg.id;
+    case HighlightRole:
+        return highlightedMessageId.isValid()
+            && msg.id.hasValue() && msg.id.get() == highlightedMessageId;
     case ReactionsRole: {
         if (!msg.reactions.hasValue() || msg.reactions->isEmpty())
             return QVariant();
@@ -674,6 +677,37 @@ Snowflake ChatModel::getOldestMessageId() const
 Snowflake ChatModel::getActiveChannelId() const
 {
     return currentChannelId;
+}
+
+int ChatModel::rowForMessage(Snowflake messageId) const
+{
+    if (!messageId.isValid())
+        return -1;
+    for (int i = 0; i < messages.size(); ++i) {
+        if (messages[i].id.hasValue() && messages[i].id.get() == messageId)
+            return i;
+    }
+    return -1;
+}
+
+void ChatModel::setHighlightedMessage(Snowflake messageId)
+{
+    if (highlightedMessageId == messageId)
+        return;
+
+    const Snowflake previous = highlightedMessageId;
+    highlightedMessageId = messageId;
+
+    // Repaint the previously-highlighted row (clear) and the new one (set).
+    auto repaint = [this](Snowflake id) {
+        const int row = rowForMessage(id);
+        if (row >= 0) {
+            const QModelIndex idx = index(row, 0);
+            emit dataChanged(idx, idx, {HighlightRole});
+        }
+    };
+    repaint(previous);
+    repaint(messageId);
 }
 
 void ChatModel::setMessages(const QList<Discord::Message> &messages) { }

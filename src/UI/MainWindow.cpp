@@ -353,7 +353,6 @@ void MainWindow::runSearch(const QString &queryText)
 
 void MainWindow::navigateToSearchResult(Snowflake channelId, Snowflake messageId)
 {
-    Q_UNUSED(messageId);
     if (!currentInstance || !channelId.isValid())
         return;
 
@@ -373,6 +372,12 @@ void MainWindow::navigateToSearchResult(Snowflake channelId, Snowflake messageId
             entry.iconUrl = Discord::Cdn::guildIcon(ch.guildId, ch.guildIconHash, 64);
         tabBar->openNewTab(entry);
         selectChannelInTree(channelId);
+
+        // Try to jump immediately (channel may already be loaded); otherwise
+        // remember it and the messagesReceived handler will jump once loaded.
+        pendingJumpMessageId = messageId;
+        if (messageId.isValid() && chatView->jumpToMessage(messageId))
+            pendingJumpMessageId = Core::Snowflake::Invalid;
         return;
     }
 }
@@ -636,6 +641,14 @@ void MainWindow::switchActiveInstance(Core::ClientInstance *newInstance)
                 if (result.success && result.type == Discord::Client::MessageLoadType::History &&
                     result.channelId == chatModel->getActiveChannelId())
                     chatView->onHistoryRequestFinished();
+
+                // Apply a pending search-result jump once the target channel's
+                // messages have loaded.
+                if (result.success && pendingJumpMessageId.isValid()
+                    && result.channelId == chatModel->getActiveChannelId()) {
+                    if (chatView->jumpToMessage(pendingJumpMessageId))
+                        pendingJumpMessageId = Core::Snowflake::Invalid;
+                }
             });
 
     connect(currentInstance->discord(), &Discord::Client::typingStart, this,

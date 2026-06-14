@@ -4,6 +4,7 @@
 #include <QTextDocument>
 #include <QTextCursor>
 #include <QSettings>
+#include <QTimer>
 #include <atomic>
 
 #include "UI/Dialogs/ConfirmPopup.hpp"
@@ -435,6 +436,28 @@ void ChatView::setCanPinMessages(bool canPin)
 void ChatView::setCanManageMessages(bool canManage)
 {
     canManageMessages = canManage;
+}
+
+bool ChatView::jumpToMessage(Core::Snowflake messageId)
+{
+    auto *chatModel = qobject_cast<ChatModel *>(model());
+    if (!chatModel || !messageId.isValid())
+        return false;
+
+    const int row = chatModel->rowForMessage(messageId);
+    if (row < 0)
+        return false; // not currently loaded
+
+    const QModelIndex idx = chatModel->index(row, 0);
+    scrollTo(idx, QAbstractItemView::PositionAtCenter);
+
+    // Flash the highlight, then clear it after a short delay.
+    chatModel->setHighlightedMessage(messageId);
+    QTimer::singleShot(2000, chatModel, [chatModel, messageId]() {
+        if (chatModel->getActiveChannelId().isValid())
+            chatModel->setHighlightedMessage(Core::Snowflake::Invalid);
+    });
+    return true;
 }
 
 void ChatView::contextMenuEvent(QContextMenuEvent *event)

@@ -196,6 +196,7 @@ public:
         ReplyDataRole,
         ReactionsRole,
         IsSystemMessageRole,
+        HighlightRole,
     };
 
     using AvatarUrlResolver = std::function<QUrl(const Discord::User &)>;
@@ -213,6 +214,15 @@ public:
 
     [[nodiscard]] Snowflake getOldestMessageId() const;
     [[nodiscard]] Snowflake getActiveChannelId() const;
+
+    // Returns the row of the message with the given id, or -1 if it is not
+    // currently loaded in this channel.
+    [[nodiscard]] int rowForMessage(Snowflake messageId) const;
+
+    // Marks a message as highlighted (for search/reply jump). Pass an invalid
+    // id to clear. Emits dataChanged for the affected rows so the delegate
+    // repaints with the highlight background.
+    void setHighlightedMessage(Snowflake messageId);
     [[nodiscard]] bool isSpoilerRevealed(Snowflake attachmentId) const;
 
     QTextDocument *getCachedDocument(const DocCacheKey &key) const;
@@ -249,6 +259,7 @@ private:
     mutable int docCacheWidth = 0;
 
     Snowflake currentChannelId = Snowflake::Invalid;
+    Snowflake highlightedMessageId = Snowflake::Invalid;
     Snowflake currentGuildId = Snowflake::Invalid;
 
     AvatarUrlResolver avatarUrlResolver;

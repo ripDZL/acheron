@@ -98,6 +98,7 @@ private:
     LogViewer *logViewer = nullptr;
     QuickSwitcher *quickSwitcher = nullptr;
     SearchPanel *searchPanel = nullptr;
+    Core::Snowflake pendingJumpMessageId = Core::Snowflake::Invalid;
 
     ChannelTreeView *channelTree;
     ChannelDelegate *channelDelegate = nullptr;

@@ -77,6 +77,13 @@ void ChatDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
     ChatLayout::LayoutContext ctx = buildLayoutContext(option, index);
     ChatLayout::MessageLayout layout = ChatLayout::calculateMessageLayout(ctx);
 
+    // Search/reply jump highlight: tint the whole message row.
+    if (index.data(ChatModel::HighlightRole).toBool()) {
+        QColor hl = option.palette.highlight().color();
+        hl.setAlpha(48);
+        painter->fillRect(layout.rowRect, hl);
+    }
+
     const QString username = index.data(ChatModel::UsernameRole).toString();
     const QPixmap avatar = qvariant_cast<QPixmap>(index.data(ChatModel::AvatarRole));
     const QDateTime timestamp = index.data(ChatModel::TimestampRole).toDateTime().toLocalTime();
