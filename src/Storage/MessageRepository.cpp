@@ -250,6 +250,146 @@ QList<Discord::Message> MessageRepository::getMessagesBefore(Core::Snowflake cha
     return messages;
 }
 
+MessageRepository::SearchResult MessageRepository::searchMessages(
+        const Core::SearchQuery &query, int offset, int limit)
+{
+    using Has = Core::SearchQuery::Has;
+
+    SearchResult result;
+    auto db = getDb();
+
+    // Build a WHERE clause + ordered bind list shared by the count and page
+    // queries. Bind values are positional (?) so the same list applies to both.
+    QStringList where;
+    where << QStringLiteral("m.deleted = 0");
+
+    QList<QVariant> binds;
+
+    // Free-text terms: AND-combined, case-insensitive substring.
+    for (const QString &term : query.terms) {
+        where << QStringLiteral("m.content LIKE ? ESCAPE '\\'");
+        QString escaped = term;
+        escaped.replace(QLatin1Char('\\'), QStringLiteral("\\\\"))
+               .replace(QLatin1Char('%'), QStringLiteral("\\%"))
+               .replace(QLatin1Char('_'), QStringLiteral("\\_"));
+        binds << (QStringLiteral("%") + escaped + QStringLiteral("%"));
+    }
+
+    // from: author filter (resolved ids).
+    if (!query.fromIds.isEmpty()) {
+        QStringList ph;
+        for (const auto &id : query.fromIds) {
+            ph << QStringLiteral("?");
+            binds << static_cast<qint64>(id);
+        }
+        where << QStringLiteral("m.author_id IN (%1)").arg(ph.join(QLatin1Char(',')));
+    }
+
+    // in: channel filter (resolved ids).
+    if (!query.inIds.isEmpty()) {
+        QStringList ph;
+        for (const auto &id : query.inIds) {
+            ph << QStringLiteral("?");
+            binds << static_cast<qint64>(id);
+        }
+        where << QStringLiteral("m.channel_id IN (%1)").arg(ph.join(QLatin1Char(',')));
+    }
+
+    // mentions: not stored as a column — a mention appears as <@id> in content.
+    for (const auto &id : query.mentionsIds) {
+        where << QStringLiteral("m.content LIKE ?");
+        binds << (QStringLiteral("%<@") + QString::number(static_cast<qint64>(id)) + QStringLiteral("%"));
+    }
+
+    // Date bounds (timestamp stored as ISO-8601 text -> lexicographic compare).
+    if (query.after.isValid()) {
+        where << QStringLiteral("m.timestamp >= ?");
+        binds << query.after.toUTC().toString(Qt::ISODate);
+    }
+    if (query.before.isValid()) {
+        where << QStringLiteral("m.timestamp < ?");
+        binds << query.before.toUTC().toString(Qt::ISODate);
+    }
+
+    // has: predicates.
+    for (Has h : query.has) {
+        switch (h) {
+        case Has::Link:
+            where << QStringLiteral("(m.content LIKE '%http://%' OR m.content LIKE '%https://%')");
+            break;
+        case Has::Embed:
+            where << QStringLiteral("(m.embeds IS NOT NULL AND m.embeds != '' AND m.embeds != '[]')");
+            break;
+        case Has::Image:
+            where << QStringLiteral(
+                "EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id "
+                "AND a.content_type LIKE 'image/%')");
+            break;
+        case Has::Video:
+            where << QStringLiteral(
+                "EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id "
+                "AND a.content_type LIKE 'video/%')");
+            break;
+        case Has::Sound:
+            where << QStringLiteral(
+                "EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id "
+                "AND a.content_type LIKE 'audio/%')");
+            break;
+        case Has::File:
+            where << QStringLiteral(
+                "EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id)");
+            break;
+        }
+    }
+
+    const QString whereClause = where.join(QStringLiteral(" AND "));
+
+    // --- total count ---
+    {
+        QSqlQuery cq(db);
+        cq.prepare(QStringLiteral("SELECT COUNT(*) FROM messages m WHERE ") + whereClause);
+        for (const QVariant &b : binds)
+            cq.addBindValue(b);
+        if (cq.exec() && cq.next())
+            result.totalCount = cq.value(0).toInt();
+        else if (cq.lastError().isValid())
+            qCWarning(LogDB) << "MessageRepository: search count failed:" << cq.lastError().text();
+    }
+
+    // --- page of results (newest first) ---
+    QSqlQuery q(db);
+    q.prepare(QStringLiteral(R"(
+        SELECT m.id, m.channel_id, m.author_id, m.content, m.timestamp, m.edited_timestamp, m.type, m.flags, m.embeds, m.reactions,
+               u.id, u.username, u.global_name, u.avatar, u.bot,
+               m.referenced_message_id,
+               rm.id, rm.channel_id, rm.author_id, rm.content, rm.timestamp, rm.edited_timestamp, rm.type, rm.flags, rm.embeds,
+               ru.id, ru.username, ru.global_name, ru.avatar, ru.bot
+        FROM messages m
+        INNER JOIN users u ON m.author_id = u.id
+        LEFT JOIN messages rm ON m.referenced_message_id = rm.id
+        LEFT JOIN users ru ON rm.author_id = ru.id
+        WHERE )") + whereClause + QStringLiteral(R"(
+        ORDER BY m.id DESC
+        LIMIT ? OFFSET ?
+    )"));
+
+    for (const QVariant &b : binds)
+        q.addBindValue(b);
+    q.addBindValue(limit);
+    q.addBindValue(offset);
+
+    if (!q.exec()) {
+        qCWarning(LogDB) << "MessageRepository: search failed:" << q.lastError().text();
+        return result;
+    }
+
+    while (q.next())
+        result.messages.append(readMessageFromQuery(q));
+
+    loadAttachmentsForMessages(result.messages, db);
+    return result;
+}
+
 Discord::Message MessageRepository::readMessageFromQuery(const QSqlQuery &q)
 {
     // Columns 0-8: m.id, m.channel_id, m.author_id, m.content, m.timestamp, m.edited_timestamp, m.type, m.flags, m.embeds

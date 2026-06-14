@@ -100,6 +100,7 @@ set(PROJECT_SOURCES
     src/Core/MessageManager.cpp
     src/Core/ImageManager.cpp
     src/Core/UserManager.cpp
+    src/Core/SearchQueryParser.cpp
     src/Core/TypingTracker.cpp
     src/Core/PermissionManager.cpp
     src/Core/PermissionComputer.cpp

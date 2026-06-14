@@ -209,6 +209,8 @@ void DatabaseManager::setupCacheTables(const QString &connName)
     )");
 
     query.exec("CREATE INDEX idx_attachments_message_id ON attachments(message_id);");
+    query.exec("CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id, id);");
+    query.exec("CREATE INDEX IF NOT EXISTS idx_messages_author ON messages(author_id);");
 
     query.exec(R"(
         CREATE TABLE "roles" (

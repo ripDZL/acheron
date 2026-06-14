@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QSqlDatabase>
+#include "Core/SearchQueryParser.hpp"
 #include <QSqlQuery>
 
 #include "BaseRepository.hpp"
@@ -26,6 +27,18 @@ public:
     QList<Discord::Message> getLatestMessages(Core::Snowflake channelId, int limit);
     QList<Discord::Message> getMessagesBefore(Core::Snowflake channelId, Core::Snowflake beforeId,
                                               int limit);
+
+    // Result of a search: a page of matching messages plus the total match
+    // count (so the UI can show "X results" and paginate).
+    struct SearchResult {
+        QList<Discord::Message> messages;
+        int totalCount = 0;
+    };
+
+    // Full-text-ish search over locally-cached messages. The query's name-based
+    // operators (from/in/mentions) must already be resolved to ids by the
+    // caller. offset/limit paginate the result, newest first.
+    SearchResult searchMessages(const Core::SearchQuery &query, int offset, int limit);
 
 private:
     void loadAttachmentsForMessages(QList<Discord::Message> &messages, QSqlDatabase &db);
