@@ -48,6 +48,7 @@ private:
     QCheckBox *notificationSoundsCheckbox = nullptr;
     QCheckBox *showTypingCheckbox = nullptr;
     QCheckBox *showHiddenChannelsCheckbox = nullptr;
+    QCheckBox *showOwnerCrownCheckbox = nullptr;
     QSpinBox *avatarSizeSpin = nullptr;
     QSpinBox *emojiSizeSpin = nullptr;
 

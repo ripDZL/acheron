@@ -548,6 +548,10 @@ void MainWindow::onChannelSelectionChanged(const QModelIndex &current, const QMo
         if (gId.isValid()) {
             memberListView->show();
             selectedInstance->memberList()->setActiveChannel(gId, node->id);
+            auto guild = selectedInstance->getGuild(gId);
+            memberListModel->setGuildOwnerId(
+                    (guild && guild->ownerId.hasValue()) ? guild->ownerId.get()
+                                                         : Snowflake::Invalid);
         }
     }
 
@@ -1385,6 +1389,10 @@ void MainWindow::activateChannel(const TabEntry &entry)
         if (entry.guildId.isValid()) {
             memberListView->show();
             instance->memberList()->setActiveChannel(entry.guildId, entry.channelId);
+            auto guild = instance->getGuild(entry.guildId);
+            memberListModel->setGuildOwnerId(
+                    (guild && guild->ownerId.hasValue()) ? guild->ownerId.get()
+                                                         : Snowflake::Invalid);
         }
     }
 

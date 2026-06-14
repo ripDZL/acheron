@@ -2,8 +2,41 @@
 
 #include "Discord/CdnUrls.hpp"
 
+#include <QSettings>
+#include <atomic>
+
 namespace Acheron {
 namespace UI {
+
+namespace {
+std::atomic<int> g_showOwnerCrown{-1}; // -1 = not yet loaded
+}
+
+bool MemberListModel::showOwnerCrown()
+{
+    int v = g_showOwnerCrown.load(std::memory_order_relaxed);
+    if (v < 0) {
+        v = QSettings().value("members/owner_crown", true).toBool() ? 1 : 0;
+        g_showOwnerCrown.store(v, std::memory_order_relaxed);
+    }
+    return v != 0;
+}
+
+void MemberListModel::setShowOwnerCrown(bool on)
+{
+    g_showOwnerCrown.store(on ? 1 : 0, std::memory_order_relaxed);
+    QSettings().setValue("members/owner_crown", on);
+}
+
+void MemberListModel::setGuildOwnerId(Core::Snowflake ownerId)
+{
+    if (guildOwnerId == ownerId)
+        return;
+    guildOwnerId = ownerId;
+    // Repaint all rows so crowns update for the new guild context.
+    if (manager && manager->totalItemCount() > 0)
+        emit dataChanged(index(0, 0), index(manager->totalItemCount() - 1, 0), {IsOwnerRole});
+}
 
 constexpr static QSize AvatarRequestSize = QSize(32, 32);
 
@@ -71,6 +104,9 @@ QVariant MemberListModel::data(const QModelIndex &index, int role) const
         return item->type == Core::MemberListItem::Type::Member
                        ? QVariant::fromValue(static_cast<quint64>(item->userId))
                        : QVariant();
+    case IsOwnerRole:
+        return item->type == Core::MemberListItem::Type::Member
+                && guildOwnerId.isValid() && item->userId == guildOwnerId;
     case UsernameRole:
         return item->type == Core::MemberListItem::Type::Member
                        ? item->displayName

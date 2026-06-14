@@ -6,6 +6,7 @@
 #include "UI/TypingIndicator.hpp"
 #include "UI/Chat/ChatView.hpp"
 #include "UI/Input/MessageInput.hpp"
+#include "UI/MemberList/MemberListModel.hpp"
 #include "UI/TabBar/TabBar.hpp"
 #include "UI/ChannelList/ChannelFilterProxyModel.hpp"
 #include "Core/ImageManager.hpp"
@@ -257,6 +258,14 @@ void SettingsWindow::buildDiscordPage()
     layout->addWidget(showTypingCheckbox);
     connect(showTypingCheckbox, &QCheckBox::toggled, this, [](bool checked) {
         TypingIndicator::setShowTyping(checked);
+    });
+
+    showOwnerCrownCheckbox = new QCheckBox(tr("Show owner crown in the member list"), page);
+    showOwnerCrownCheckbox->setToolTip(
+            tr("Marks the server owner with a crown next to their name, even on large servers."));
+    layout->addWidget(showOwnerCrownCheckbox);
+    connect(showOwnerCrownCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        MemberListModel::setShowOwnerCrown(checked);
     });
 
     showHiddenChannelsCheckbox = new QCheckBox(tr("Show hidden channels"), page);
@@ -515,6 +524,7 @@ void SettingsWindow::loadSettings()
     closeToTrayCheckbox->setChecked(settings.value("tray/close_to_tray", true).toBool());
     showNicknamesCheckbox->setChecked(Core::UserManager::showNicknames());
     showTypingCheckbox->setChecked(TypingIndicator::showTyping());
+    showOwnerCrownCheckbox->setChecked(MemberListModel::showOwnerCrown());
     showHiddenChannelsCheckbox->setChecked(ChannelFilterProxyModel::showHiddenChannels());
 
     QString locale = settings.value("language/locale", "en_US").toString();

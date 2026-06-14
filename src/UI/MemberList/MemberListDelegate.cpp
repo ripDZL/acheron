@@ -19,6 +19,44 @@ constexpr static int AvatarTextSpacing = 8;
 namespace Acheron {
 namespace UI {
 
+namespace {
+// Draws a small gold crown glyph within the given rect. Vector-drawn so it
+// stays crisp at any DPI and needs no bundled asset.
+void drawOwnerCrown(QPainter *painter, const QRectF &rect)
+{
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, true);
+
+    const qreal x = rect.x();
+    const qreal y = rect.y();
+    const qreal w = rect.width();
+    const qreal h = rect.height();
+
+    // Crown body: a base bar with three points rising to peaks.
+    QPainterPath crown;
+    const qreal baseTop = y + h * 0.72;
+    const qreal bottom = y + h * 0.88;
+    crown.moveTo(x + w * 0.04, baseTop);
+    crown.lineTo(x + w * 0.04, y + h * 0.30);          // left spire up
+    crown.lineTo(x + w * 0.27, y + h * 0.60);          // dip
+    crown.lineTo(x + w * 0.50, y + h * 0.18);          // center spire up
+    crown.lineTo(x + w * 0.73, y + h * 0.60);          // dip
+    crown.lineTo(x + w * 0.96, y + h * 0.30);          // right spire up
+    crown.lineTo(x + w * 0.96, baseTop);               // down to base
+    crown.closeSubpath();
+
+    const QColor gold(0xF1, 0xC4, 0x0F);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(gold);
+    painter->drawPath(crown);
+
+    // Base bar under the crown.
+    painter->drawRoundedRect(QRectF(x + w * 0.04, baseTop, w * 0.92, bottom - baseTop),
+                             1.0, 1.0);
+    painter->restore();
+}
+} // namespace
+
 MemberListDelegate::MemberListDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
 {
@@ -151,7 +189,14 @@ void MemberListDelegate::paintMember(QPainter *painter, const QStyleOptionViewIt
     const int platformsWidth =
             platforms.isEmpty() ? 0 : platforms.size() * (PlatIconSize + PlatIconGap);
 
-    int textWidth = option.rect.right() - x - HorizontalPadding - platformsWidth;
+    // Owner crown: reserve space to the right of the name (left of platforms).
+    const bool isOwner = MemberListModel::showOwnerCrown()
+            && index.data(MemberListModel::IsOwnerRole).toBool();
+    constexpr int CrownSize = 12;
+    constexpr int CrownGap = 4;
+    const int crownWidth = isOwner ? (CrownSize + CrownGap) : 0;
+
+    int textWidth = option.rect.right() - x - HorizontalPadding - platformsWidth - crownWidth;
     QRect nameRect(x, option.rect.top(), textWidth, option.rect.height());
 
     QString displayName = index.data(MemberListModel::UsernameRole).toString();
@@ -173,6 +218,14 @@ void MemberListDelegate::paintMember(QPainter *painter, const QStyleOptionViewIt
     QFontMetrics fm(font);
     QString elidedName = fm.elidedText(displayName, Qt::ElideRight, textWidth);
     painter->drawText(nameRect, Qt::AlignLeft | Qt::AlignVCenter, elidedName);
+
+    // Draw the crown immediately after the (elided) name text.
+    if (isOwner) {
+        const int nameTextWidth = qMin(fm.horizontalAdvance(elidedName), textWidth);
+        const int crownX = x + nameTextWidth + CrownGap;
+        const int crownY = option.rect.top() + (option.rect.height() - CrownSize) / 2;
+        drawOwnerCrown(painter, QRectF(crownX, crownY, CrownSize, CrownSize));
+    }
 
     if (!platforms.isEmpty()) {
         int iconY = option.rect.top() + (option.rect.height() - PlatIconSize) / 2;
