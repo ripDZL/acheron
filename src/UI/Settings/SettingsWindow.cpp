@@ -5,6 +5,7 @@
 #include "AppearancePage.hpp"
 #include "UI/TypingIndicator.hpp"
 #include "UI/Chat/ChatView.hpp"
+#include "UI/Input/MessageInput.hpp"
 #include "UI/TabBar/TabBar.hpp"
 #include "UI/ChannelList/ChannelFilterProxyModel.hpp"
 #include "Core/ImageManager.hpp"
@@ -126,6 +127,33 @@ void SettingsWindow::buildGeneralPage()
     scrollForm->addRow(tr("Chat scroll speed (wheel)"), scrollSpeedSpin);
     layout->addSpacing(4);
     layout->addLayout(scrollForm);
+
+    // ── Message input ─────────────────────────────────────────────────────────
+    auto *inputLabel = new QLabel(tr("Message Input"), page);
+    QFont inf = inputLabel->font();
+    inf.setBold(true);
+    inputLabel->setFont(inf);
+    layout->addSpacing(10);
+    layout->addWidget(inputLabel);
+
+    charCounterCheckbox = new QCheckBox(tr("Show character counter in the message box"), page);
+    charCounterCheckbox->setChecked(MessageInput::counterEnabled());
+    layout->addWidget(charCounterCheckbox);
+
+    charCounterColorCheckbox = new QCheckBox(
+            tr("Colour the counter as you approach the limit"), page);
+    charCounterColorCheckbox->setChecked(MessageInput::counterColorEffects());
+    charCounterColorCheckbox->setEnabled(MessageInput::counterEnabled());
+    layout->addWidget(charCounterColorCheckbox);
+
+    connect(charCounterCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
+        MessageInput::setCounterEnabled(checked);
+        if (charCounterColorCheckbox)
+            charCounterColorCheckbox->setEnabled(checked);
+    });
+    connect(charCounterColorCheckbox, &QCheckBox::toggled, this, [](bool checked) {
+        MessageInput::setCounterColorEffects(checked);
+    });
 
     // ── Tabs ─────────────────────────────────────────────────────────────────
     auto *tabsLabel = new QLabel(tr("Tabs"), page);

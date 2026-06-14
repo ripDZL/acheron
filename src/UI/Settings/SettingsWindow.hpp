@@ -32,6 +32,8 @@ private:
     QCheckBox *downloadImagesCheckbox = nullptr;
     QSpinBox *messageSpacingSpin = nullptr;
     QCheckBox *invertWheelCheckbox = nullptr;
+    QCheckBox *charCounterCheckbox = nullptr;
+    QCheckBox *charCounterColorCheckbox = nullptr;
     QDoubleSpinBox *scrollSpeedSpin = nullptr;
     QCheckBox *showCloseButtonCheckbox = nullptr;
     QCheckBox *extraActiveHighlightCheckbox = nullptr;

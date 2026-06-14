@@ -53,11 +53,29 @@ private:
     QWidget *replyBar;
     QLabel *replyLabel;
     QToolButton *replyCancelButton;
+    QLabel *charCounter = nullptr;
 
     Core::Snowflake replyMessageId;
     bool sendBlocked = false;
 
     void adjustHeight();
+    void updateCharCounter();
+    void repositionCharCounter();
+
+public:
+    // Live, QSettings-backed character-counter preferences.
+    // Master on/off:
+    static bool counterEnabled();
+    static void setCounterEnabled(bool on);
+    // Colour escalation as the limit approaches:
+    static bool counterColorEffects();
+    static void setCounterColorEffects(bool on);
+    // Character limit (defaults to 2000; settable so a Nitro-aware caller can
+    // raise it to 4000 if the self user's premium type becomes known).
+    static int counterMax();
+    static void setCounterMax(int max);
+
+private:
 };
 
 } // namespace UI
