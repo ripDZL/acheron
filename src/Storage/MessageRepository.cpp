@@ -285,6 +285,15 @@ MessageRepository::SearchResult MessageRepository::searchMessages(
         where << QStringLiteral("m.author_id IN (%1)").arg(ph.join(QLatin1Char(',')));
     }
 
+    // from: author filter by NAME (resolve against users table in-SQL).
+    for (const QString &name : query.fromNames) {
+        where << QStringLiteral(
+            "m.author_id IN (SELECT id FROM users WHERE "
+            "username LIKE ? OR global_name LIKE ?)");
+        const QString like = QStringLiteral("%") + name + QStringLiteral("%");
+        binds << like << like;
+    }
+
     // in: channel filter (resolved ids).
     if (!query.inIds.isEmpty()) {
         QStringList ph;
@@ -299,6 +308,15 @@ MessageRepository::SearchResult MessageRepository::searchMessages(
     for (const auto &id : query.mentionsIds) {
         where << QStringLiteral("m.content LIKE ?");
         binds << (QStringLiteral("%<@") + QString::number(static_cast<qint64>(id)) + QStringLiteral("%"));
+    }
+
+    // mentions: by NAME — resolve to ids via users table, then match <@id>.
+    for (const QString &name : query.mentionsNames) {
+        where << QStringLiteral(
+            "EXISTS (SELECT 1 FROM users mu WHERE (mu.username LIKE ? OR mu.global_name LIKE ?) "
+            "AND m.content LIKE '%<@' || mu.id || '%')");
+        const QString like = QStringLiteral("%") + name + QStringLiteral("%");
+        binds << like << like;
     }
 
     // Date bounds (timestamp stored as ISO-8601 text -> lexicographic compare).

@@ -86,6 +86,16 @@ void MessageManager::setChannelResolver(std::function<QString(Snowflake)> resolv
     });
 }
 
+Storage::MessageRepository::SearchResult MessageManager::search(
+        const QString &queryText, const QList<Snowflake> &inChannelIds, int offset, int limit)
+{
+    Core::SearchQuery query = Core::SearchQueryParser::parse(queryText);
+    // Channel names are resolved by the caller (against the channel tree) and
+    // passed in as ids; merge them so the repository can filter on channel_id.
+    query.inIds = inChannelIds;
+    return repo.searchMessages(query, offset, limit);
+}
+
 void MessageManager::requestLoadChannel(Snowflake channelId)
 {
     if (fetchedChannels.contains(channelId)) {

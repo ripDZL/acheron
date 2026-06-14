@@ -120,6 +120,7 @@ set(PROJECT_SOURCES
     src/UI/Chat/HiddenChannelView.cpp
     src/UI/LogViewer/LogViewer.cpp
     src/UI/QuickSwitcher/QuickSwitcher.cpp
+    src/UI/Search/SearchPanel.cpp
     src/UI/BrowserCaptchaResolver.cpp
     src/UI/TypingIndicator.cpp
     src/UI/SlowModeIndicator.cpp

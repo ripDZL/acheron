@@ -38,6 +38,7 @@ class VoiceStatusBar;
 class TabBar;
 class LogViewer;
 class QuickSwitcher;
+class SearchPanel;
 class HiddenChannelView;
 struct TabEntry;
 } // namespace UI
@@ -67,6 +68,9 @@ private:
     void markAllChannelsAsRead();
     void toggleLogViewer();
     void openQuickSwitcher();
+    void toggleSearchPanel();
+    void runSearch(const QString &queryText);
+    void navigateToSearchResult(Core::Snowflake channelId, Core::Snowflake messageId);
     void setupPermanentConnections(Core::ClientInstance *instance);
     void switchToTabEntry(const TabEntry &entry);
     void activateChannel(const TabEntry &entry);
@@ -93,6 +97,7 @@ private:
     MemberListDelegate *memberListDelegate = nullptr;
     LogViewer *logViewer = nullptr;
     QuickSwitcher *quickSwitcher = nullptr;
+    SearchPanel *searchPanel = nullptr;
 
     ChannelTreeView *channelTree;
     ChannelDelegate *channelDelegate = nullptr;

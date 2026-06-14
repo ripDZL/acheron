@@ -43,6 +43,14 @@ public:
     void sendMessage(Snowflake channelId, const QString &content,
                      Snowflake replyToMessageId = Snowflake::Invalid);
 
+    // Parses a Discord-style query string and searches locally-cached messages.
+    // `inChannelIds` are pre-resolved channel ids for any in: operators (the
+    // caller resolves channel names against the channel tree). Returns a page
+    // of results newest-first plus the total match count.
+    Storage::MessageRepository::SearchResult search(const QString &queryText,
+                                                    const QList<Snowflake> &inChannelIds,
+                                                    int offset, int limit);
+
 signals:
     void messagesReceived(const MessageRequestResult &result);
     void messageErrored(const QString &nonce);

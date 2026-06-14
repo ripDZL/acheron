@@ -26,6 +26,7 @@
 #include "Core/ReadStateManager.hpp"
 #include "LogViewer/LogViewer.hpp"
 #include "QuickSwitcher/QuickSwitcher.hpp"
+#include "Search/SearchPanel.hpp"
 #include "Chat/HiddenChannelView.hpp"
 #include <QStackedWidget>
 #include "Discord/Events.hpp"
@@ -303,6 +304,77 @@ void MainWindow::openQuickSwitcher()
 
     quickSwitcher->setResults(channelTreeModel->collectAllChannels());
     quickSwitcher->showCentered(this);
+}
+
+void MainWindow::toggleSearchPanel()
+{
+    if (!searchPanel)
+        return;
+    if (searchPanel->isVisible()) {
+        searchPanel->hide();
+    } else {
+        searchPanel->show();
+        searchPanel->focusInput();
+    }
+}
+
+void MainWindow::runSearch(const QString &queryText)
+{
+    if (!currentInstance || !searchPanel) {
+        if (searchPanel)
+            searchPanel->setResults({}, 0, queryText);
+        return;
+    }
+
+    // Resolve any in:<name> channel operators against the channel tree so the
+    // backend can filter by channel id. We scan the parsed query's inNames by
+    // re-parsing here (cheap) and matching channel names case-insensitively.
+    Core::SearchQuery parsed = Core::SearchQueryParser::parse(queryText);
+    QList<Snowflake> inChannelIds;
+    if (!parsed.inNames.isEmpty()) {
+        const auto channels = channelTreeModel->collectAllChannels();
+        for (const QString &wanted : parsed.inNames) {
+            const QString w = wanted.trimmed();
+            for (const auto &ch : channels) {
+                if (ch.accountId != currentInstance->accountId())
+                    continue;
+                if (ch.name.compare(w, Qt::CaseInsensitive) == 0
+                    || ch.name.contains(w, Qt::CaseInsensitive)) {
+                    inChannelIds.append(ch.channelId);
+                }
+            }
+        }
+    }
+
+    const int kPageLimit = 50;
+    auto result = currentInstance->messages()->search(queryText, inChannelIds, 0, kPageLimit);
+    searchPanel->setResults(result.messages, result.totalCount, queryText);
+}
+
+void MainWindow::navigateToSearchResult(Snowflake channelId, Snowflake messageId)
+{
+    Q_UNUSED(messageId);
+    if (!currentInstance || !channelId.isValid())
+        return;
+
+    // Look up full channel metadata (guild id, dm flag, icon) so the tab opens
+    // exactly like it would from the quick switcher.
+    const auto channels = channelTreeModel->collectAllChannels();
+    for (const auto &ch : channels) {
+        if (ch.accountId != currentInstance->accountId() || ch.channelId != channelId)
+            continue;
+        TabEntry entry;
+        entry.channelId = ch.channelId;
+        entry.guildId = ch.guildId;
+        entry.accountId = ch.accountId;
+        entry.name = ch.name;
+        entry.isDm = ch.isDm;
+        if (ch.guildId.isValid() && !ch.guildIconHash.isEmpty())
+            entry.iconUrl = Discord::Cdn::guildIcon(ch.guildId, ch.guildIconHash, 64);
+        tabBar->openNewTab(entry);
+        selectChannelInTree(channelId);
+        return;
+    }
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *ev)
@@ -881,6 +953,17 @@ void MainWindow::setupUi()
 
     mainSplitter->addWidget(memberListView);
 
+    searchPanel = new SearchPanel(this);
+    searchPanel->setMinimumWidth(280);
+    searchPanel->setMaximumWidth(460);
+    mainSplitter->addWidget(searchPanel);
+    searchPanel->hide();
+    connect(searchPanel, &SearchPanel::searchRequested, this, &MainWindow::runSearch);
+    connect(searchPanel, &SearchPanel::resultActivated, this, &MainWindow::navigateToSearchResult);
+    connect(searchPanel, &SearchPanel::closeRequested, this, [this]() {
+        searchPanel->hide();
+    });
+
     mainSplitter->setCollapsible(0, false);
     mainSplitter->setCollapsible(2, false);
     mainSplitter->setStretchFactor(0, 0);
@@ -1341,6 +1424,12 @@ void MainWindow::setupMenu()
     connect(quickSwitcherAction, &QAction::triggered, this, &MainWindow::openQuickSwitcher);
     viewMenu->addAction(quickSwitcherAction);
     addAction(quickSwitcherAction); // make Ctrl+K work window-wide
+
+    auto *searchAction = new QAction(tr("&Search Messages"), this);
+    searchAction->setShortcut(QKeySequence::Find); // Ctrl+F
+    connect(searchAction, &QAction::triggered, this, &MainWindow::toggleSearchPanel);
+    viewMenu->addAction(searchAction);
+    addAction(searchAction); // make Ctrl+F work window-wide
 
     // Top-level "Mark as Read" button (sits to the right of the View menu) that
     // marks every channel and DM across all accounts as read.
